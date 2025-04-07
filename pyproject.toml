@@ -1,0 +1,159 @@
+[project]
+name = "imagescry"
+version = "0.1.0"
+description = "Use embeddings to intelligently sift through a maze of unlabeled imagery."
+readme = "README.md"
+authors = [
+    { name = "libertininick", email = "libertini.nick@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "beartype>=0.20.2",
+    "duckdb>=1.2.1",
+    "fastapi>=0.115.12",
+    "jaxtyping>=0.3.1",
+    "lightning>=2.5.1",
+    "pandas>=2.2.3",
+    "pyarrow>=19.0.1",
+    "pydantic>=2.11.2",
+    "rasterio>=1.4.3",
+    "shapely>=2.1.0",
+    "torch>=2.6.0",
+    "torchvision>=0.21.0",
+    "typer>=0.15.2",
+]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=6.29.5",
+    "ipywidgets>=8.1.5",
+    "mypy>=1.15.0",
+    "pre-commit>=4.2.0",
+    "pydoclint>=0.6.5",
+    "pytest>=8.3.5",
+    "pytest-check>=2.0.0, <2.5.0", # Remove when MyPy error: '"CheckContextManager" has no attrite ...' is resolved
+    "pytest-cov>=6.1.1",
+    "ruff>=0.11.4",
+    "uv-secure>=0.9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv.workspace]
+members = ["imagescry"]
+
+
+# MyPy configuration
+[tool.mypy]
+python_version = "3.13"
+cache_dir = "./build/.mypy_cache"
+sqlite_cache = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+enable_error_code = [
+    "ignore-without-code"
+]
+show_error_codes = true
+warn_unused_ignores = true
+pretty = true
+show_column_numbers = true
+show_error_context = true
+warn_unreachable = true
+
+# pydoclint configuration
+[tool.pydoclint]
+style = "google"
+allow-init-docstring = true
+
+# Pytest configuration
+[tool.pytest.ini_options]
+addopts = "-rf --doctest-modules --doctest-continue-on-failure --strict-markers"
+cache_dir = "./build/pytest"
+console_output_style = "progress"
+doctest_optionflags = "NORMALIZE_WHITESPACE"
+testpaths = [
+  "src",
+  "tests",
+]
+
+# Test coverage configuration
+[tool.coverage.run]
+branch = true
+data_file = "build/.coverage"
+
+[tool.coverage.report]
+fail_under = 90
+omit = [
+    # omit pytorch-generated files in /tmp
+    "/tmp/*",
+]
+exclude_also = [
+    "def __repr__"
+]
+precision = 1
+show_missing = true
+skip_covered = true
+skip_empty = true
+
+# Ruff configuration
+[tool.ruff]
+target-version = "py313"
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
+line-length = 120
+indent-width = 4
+cache-dir = "./build/.ruff_cache"
+preview = true # Enable preview features.
+extend-exclude = ["*.ipynb"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+  "F",        # pyflakes
+  "E", "W",   # pycodestyle
+  "C90",      # mccabe max-complexity
+  "I",        # isort
+  "N",        # pep8-naming
+  "D",        # pydocstyle
+  "UP",       # pyupgrade
+  "ANN",      # flake8-annotations
+  "S",        # flake8-bandit
+  "BLE",      # flake8-blind-except
+  "FBT",      # flake8-boolean-trap
+  "B",        # flake8-bugbear
+  "A",        # flake8-builtins
+  "C4",       # flake8-comprehensions
+  "ISC",      # flake8-implicit-str-concat
+  "ICN",      # flake8-import-conventions
+  "Q",        # flake8-quotes
+  "SIM",      # flake8-simplify 
+  "TID",      # flake8-tidy-imports 
+  "ARG",      # flake8-unused-arguments
+  "PTH",      # flake8-use-pathlib
+  "PL",       # pylint
+  "RUF",      # Ruff-specific rules
+]
+ignore = [
+  "ANN401",   # Allow any-type
+  "ISC001",   # Ignore single-line-implicit-string-concatenation for ruff format
+  "FBT003",   # Allow boolean pos values in func calls, like `dict.get(... True)`
+  "F722", "F821", "UP037",  # Ignore when using jaxtyping
+  "S105", "S106", "S107",   # Ignore checks for possible passwords
+]
+per-file-ignores = {"**/{tests}/*" = [ 
+  # Tests can use magic values, assertions, and relative imports
+  "PLR2004", "S101", "TID252",
+]}
+extend-unsafe-fixes = ["E", "F401"]
+
+flake8-tidy-imports = {ban-relative-imports = "all"}
+mccabe = {max-complexity = 6}
+isort = {known-first-party = ["imagescry", "tests"]}
+pydocstyle = {convention = "google"}
+pylint = {allow-magic-value-types = ["int", "str"], max-args = 15, max-positional-args = 5, max-locals = 25}
