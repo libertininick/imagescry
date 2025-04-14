@@ -9,13 +9,66 @@ import torch
 from jaxtyping import UInt8, jaxtyped
 from pytest_check import check
 from torch import Tensor
+from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as TorchDataset
 from torchvision.io import write_png
 
-from imagescry.image import normalize_per_channel, read_as_tensor, resize
+from imagescry.image import ImageShape, SimilarShapeBatcher, normalize_per_channel, read_as_tensor, resize
 from imagescry.typechecking import typechecker
+
+# Seed
+SEED = 1234
+torch.manual_seed(SEED)
 
 
 # Fixtures
+class VariableSizeImageDataset(TorchDataset):
+    """Dataset of images of different sizes."""
+
+    def __init__(self, num_channels: Literal[1, 3], sizes: list[tuple[int, int]]) -> None:
+        """Initialize the dataset."""
+        self.num_channels = num_channels
+        self.data = [torch.randint(0, 255, (num_channels, h, w), dtype=torch.uint8) for h, w in sizes]
+
+    def __len__(self) -> int:
+        """Get the number of images in the dataset."""
+        return len(self.data)
+
+    def __getitem__(self, idx: int) -> UInt8[Tensor, "C H W"]:
+        """Get an image from the dataset."""
+        return self.data[idx]
+
+    @property
+    def image_shapes(self) -> list[ImageShape]:
+        """Get the image shapes in the dataset."""
+        return [ImageShape(*img.shape[-3:]) for img in self.data]
+
+
+@pytest.fixture(scope="module", params=[1, 3])
+def variable_size_image_dataset(request: pytest.FixtureRequest) -> VariableSizeImageDataset:
+    """Create a variable size image dataset test fixture."""
+    return VariableSizeImageDataset(
+        num_channels=request.param,
+        # Define a random set of image sizes
+        sizes=[
+            (7, 7),
+            (7, 8),
+            (8, 8),
+            (8, 8),
+            (7, 7),
+            (5, 7),
+            (8, 8),
+            (8, 7),
+            (8, 7),
+            (7, 7),
+            (7, 7),
+            (2, 2),
+            (3, 2),
+            (2, 2),
+        ],
+    )
+
+
 @jaxtyped(typechecker=typechecker)
 @pytest.fixture(scope="module")
 def image_tensor() -> UInt8[Tensor, "3 30 45"]:
@@ -25,6 +78,37 @@ def image_tensor() -> UInt8[Tensor, "3 30 45"]:
 
 
 # Tests
+@pytest.mark.parametrize("max_batch_size", [1, 2, 3, 4])
+def test_similar_shape_batcher(variable_size_image_dataset: VariableSizeImageDataset, max_batch_size: int) -> None:
+    """Test the similar shape batcher groups images into batches by imagesize."""
+    # Create a dataloader with the similar shape batcher
+    dataloader = DataLoader(
+        variable_size_image_dataset,
+        batch_sampler=SimilarShapeBatcher(
+            image_shapes=variable_size_image_dataset.image_shapes, max_batch_size=max_batch_size
+        ),
+        shuffle=False,
+        drop_last=False,
+    )
+
+    image_shapes: list[ImageShape] = []
+    for batch in dataloader:
+        # Check the batch size is less than or equal to max_batch_size
+        check.less_equal(batch.size(0), max_batch_size)
+
+        # Get the image shapes for the batch
+        batch_image_shapes = [ImageShape(*img.shape[-3:]) for img in batch]
+
+        # Check batch image shapes are all the same
+        check.equal(len(set(batch_image_shapes)), 1)
+
+        # Add the image shapes to the list
+        image_shapes.extend(batch_image_shapes)
+
+    # Check that dataset image shapes are the same as the image shapes produced by the batch sampler
+    check.equal(variable_size_image_dataset.image_shapes, image_shapes)
+
+
 def test_normalize_per_channel(image_tensor: UInt8[Tensor, "C H W"]) -> None:
     """Test normalizing an image."""
     # Normalize the image

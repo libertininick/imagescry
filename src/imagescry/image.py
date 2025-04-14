@@ -1,17 +1,66 @@
 """Image tools."""
 
+from collections.abc import Generator
 from io import BytesIO
+from itertools import chain
 from os import PathLike
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import torch
 from jaxtyping import Float, Num, Shaped, UInt8, jaxtyped
+from more_itertools import chunked, split_when
 from PIL import Image
 from torch import Tensor
 from torch.nn.functional import interpolate
+from torch.utils.data import Sampler as TorchSampler
 from torchvision.transforms.functional import pil_to_tensor
 
 from imagescry.typechecking import typechecker
+
+
+class ImageShape(NamedTuple):
+    """Image shape.
+
+    Args:
+        channels (int): Number of channels in the image.
+        height (int): Height of the image.
+        width (int): Width of the image.
+    """
+
+    channels: int
+    height: int
+    width: int
+
+
+class SimilarShapeBatcher(TorchSampler):
+    """Sampler for grouping images by shape and batching them."""
+
+    def __init__(self, image_shapes: list[ImageShape], max_batch_size: int) -> None:
+        """Initialize sampler.
+
+        Args:
+            image_shapes (list[ImageShape]): The shapes of images to batch.
+            max_batch_size (int): The maximum size (number of images) of each batch.
+        """
+        self.image_shapes = image_shapes
+        self.batch_size = max_batch_size
+
+        # Group by shape
+        shape_groups = split_when(enumerate(self.image_shapes), lambda s1, s2: s1[1] != s2[1])
+
+        # Chunk shape groups into batches of size `max_batch_size` (or less)
+        batched_indexes_per_group = (chunked((idx for idx, _ in grp), max_batch_size) for grp in shape_groups)
+
+        # Chain together batches from each shape group & convert to list
+        self.batched_indexes = list(chain.from_iterable(batched_indexes_per_group))
+
+    def __iter__(self) -> Generator[list[int]]:
+        """Iterate over the batches."""
+        yield from self.batched_indexes
+
+    def __len__(self) -> int:
+        """Return the number of batches."""
+        return len(self.batched_indexes)
 
 
 @jaxtyped(typechecker=typechecker)
