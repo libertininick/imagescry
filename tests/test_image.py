@@ -6,7 +6,7 @@ from typing import Literal
 
 import pytest
 import torch
-from jaxtyping import UInt8, jaxtyped
+from jaxtyping import Int64, UInt8, jaxtyped
 from pytest_check import check
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -28,20 +28,23 @@ class VariableSizeImageDataset(TorchDataset):
     def __init__(self, num_channels: Literal[1, 3], sizes: list[tuple[int, int]]) -> None:
         """Initialize the dataset."""
         self.num_channels = num_channels
-        self.data = [torch.randint(0, 255, (num_channels, h, w), dtype=torch.uint8) for h, w in sizes]
+        self.image_shapes = [ImageShape(num_channels, h, w) for h, w in sizes]
+        self.data = [torch.randint(0, 255, image_shape, dtype=torch.uint8) for image_shape in self.image_shapes]
 
     def __len__(self) -> int:
         """Get the number of images in the dataset."""
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> UInt8[Tensor, "C H W"]:
-        """Get an image from the dataset."""
-        return self.data[idx]
+    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "C H W"]]:
+        """Get an image and its index from the dataset.
 
-    @property
-    def image_shapes(self) -> list[ImageShape]:
-        """Get the image shapes in the dataset."""
-        return [ImageShape(*img.shape[-3:]) for img in self.data]
+        Args:
+            idx (int): The index of the image to get.
+
+        Returns:
+            tuple[Int64[Tensor, ""], UInt8[Tensor, "C H W"]]: A tuple containing the index and the image.
+        """
+        return torch.tensor(idx), self.data[idx]
 
 
 @pytest.fixture(scope="module", params=[1, 3])
@@ -91,22 +94,20 @@ def test_similar_shape_batcher(variable_size_image_dataset: VariableSizeImageDat
         drop_last=False,
     )
 
-    image_shapes: list[ImageShape] = []
-    for batch in dataloader:
+    observed_image_indexes = set()
+    for indexes, images in dataloader:
         # Check the batch size is less than or equal to max_batch_size
-        check.less_equal(batch.size(0), max_batch_size)
+        check.less_equal(images.size(0), max_batch_size)
 
-        # Get the image shapes for the batch
-        batch_image_shapes = [ImageShape(*img.shape[-3:]) for img in batch]
+        # Check all images in the batch have the same shape
+        check.equal(len({ImageShape(*img.shape[-3:]) for img in images}), 1)
 
-        # Check batch image shapes are all the same
-        check.equal(len(set(batch_image_shapes)), 1)
+        # Add image indexes to the observed set
+        observed_image_indexes.update(indexes.tolist())
 
-        # Add the image shapes to the list
-        image_shapes.extend(batch_image_shapes)
-
-    # Check that dataset image shapes are the same as the image shapes produced by the batch sampler
-    check.equal(variable_size_image_dataset.image_shapes, image_shapes)
+    # Check that all image indexes were observed while iterating through the dataloader using the batch sampler
+    expected_image_indexes = set(range(len(variable_size_image_dataset)))
+    check.equal(expected_image_indexes, observed_image_indexes)
 
 
 def test_normalize_per_channel(image_tensor: UInt8[Tensor, "C H W"]) -> None:
