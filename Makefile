@@ -46,16 +46,14 @@ install-uv:
 ## Update all dependencies in workspace
 # 1) Update UV tool
 # 2) Prune UV Cache
-# 3) Remove workspace virtual environment
-# 4) Remove the UV lock file so it can be updated
-# 5) Recreate virtual environment with latest dependencies
-# 6) Install (new) pre-commit hooks
-# 7) Update pre-commit hooks
+# 3) Upgrade all packages listed in uv.lock
+# 4) Sync workspace environment
+# 5) Install (new) pre-commit hooks
+# 6) Update pre-commit hooks
 update:
 	@uv self update
 	@uv cache prune
-	@rm -rf $(MKFILE_DIR)/.venv/
-	@rm -f $(MKFILE_DIR)/uv.lock
+	@uv lock --upgrade
 	@uv sync
 	@uv run pre-commit install-hooks
 	@uv run pre-commit autoupdate
