@@ -1,15 +1,17 @@
 """Image tools."""
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from io import BytesIO
 from itertools import chain
 from os import PathLike
-from typing import Literal, NamedTuple
+from typing import Literal
 
 import torch
 from jaxtyping import Float, Num, Shaped, UInt8, jaxtyped
 from more_itertools import chunked, split_when
 from PIL import Image
+from pydantic import Field
+from pydantic.dataclasses import dataclass
 from torch import Tensor
 from torch.nn.functional import interpolate
 from torch.utils.data import Sampler as TorchSampler
@@ -18,30 +20,99 @@ from torchvision.transforms.functional import pil_to_tensor
 from imagescry.typechecking import typechecker
 
 
-class ImageShape(NamedTuple):
+@dataclass(frozen=True)
+class ImageShape:
     """Image shape.
 
     Args:
         channels (int): Number of channels in the image.
         height (int): Height of the image.
         width (int): Width of the image.
+
+    Examples:
+        >>> image_shape = ImageShape(3, 100, 100)
+
+        # Unpack
+        >>> channels, height, width = image_shape
+
+        # Get number of channels
+        >>> image_shape.channels
+        3
+
+        # Get height and width
+        >>> h, w = image_shape[-2:]
+
+        # Serialize to JSON
+        >>> from pydantic_core import to_json
+        >>> to_json(image_shape)
+        b'{"channels":3,"height":100,"width":100}'
     """
 
-    channels: int
-    height: int
-    width: int
+    channels: int = Field(ge=0)
+    height: int = Field(ge=1)
+    width: int = Field(ge=1)
+
+    def __eq__(self, other: object) -> bool:
+        """Define equality for sorting."""
+        if not isinstance(other, ImageShape):
+            return NotImplemented  # pragma: no cover
+        return self.to_tuple() == other.to_tuple()
+
+    def __getitem__(self, index: int | slice) -> int | tuple[int, ...]:
+        """Allow index access."""
+        if isinstance(index, int | slice):
+            return self.to_tuple()[index]
+        raise TypeError("Index must be int or slice")  # pragma: no cover
+
+    def __hash__(self) -> int:
+        """Hash the image shape."""
+        return hash(self.to_tuple())
+
+    def __iter__(self) -> Generator[int]:
+        """Allow unpacking with * operator."""
+        yield self.channels
+        yield self.height
+        yield self.width
+
+    def __lt__(self, other: object) -> bool:
+        """Define less than for sorting."""
+        if not isinstance(other, ImageShape):
+            return NotImplemented  # pragma: no cover
+        return self.to_tuple() < other.to_tuple()
+
+    def to_tuple(self) -> tuple[int, int, int]:
+        """Convert to (channels, height, width) tuple."""
+        return (self.channels, self.height, self.width)
 
 
 class SimilarShapeBatcher(TorchSampler):
-    """Sampler for grouping images by shape and batching them."""
+    """Sampler for grouping images by shape and batching them.
 
-    def __init__(self, image_shapes: list[ImageShape], max_batch_size: int) -> None:
+    This sampler will:
+    1. Index input image shapes
+    2. Sort image shapes
+    3. Group image shapes
+    4. Chunk shape groups into batches of size `max_batch_size` (or less)
+
+
+    Examples:
+        ```python
+        from torch.utils.data import DataLoader
+
+        dataloader = DataLoader(
+            dataset=# an image dataset with variable size images,
+            batch_sampler=SimilarShapeBatcher(
+                image_shapes=# iterable of `(channels, height, width)` tuples for each image in the dataset
+                max_batch_size=8  # or any other positive integer
+            ),
+            shuffle=False,
+            drop_last=False,
+        )
+        ```
+    """
+
+    def __init__(self, image_shapes: Iterable[ImageShape], max_batch_size: int) -> None:
         """Initialize sampler.
-
-        1. Index input image shapes
-        2. Sort image shapes
-        3. Group image shapes
-        4. Chunk shape groups into batches of size `max_batch_size` (or less)
 
         Args:
             image_shapes (list[ImageShape]): The shapes of images to batch.

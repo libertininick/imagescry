@@ -29,7 +29,9 @@ class VariableSizeImageDataset(TorchDataset):
         """Initialize the dataset."""
         self.num_channels = num_channels
         self.image_shapes = [ImageShape(num_channels, h, w) for h, w in sizes]
-        self.data = [torch.randint(0, 255, image_shape, dtype=torch.uint8) for image_shape in self.image_shapes]
+        self.data = [
+            torch.randint(0, 255, image_shape.to_tuple(), dtype=torch.uint8) for image_shape in self.image_shapes
+        ]
 
     def __len__(self) -> int:
         """Get the number of images in the dataset."""
