@@ -38,15 +38,22 @@ class SimilarShapeBatcher(TorchSampler):
     def __init__(self, image_shapes: list[ImageShape], max_batch_size: int) -> None:
         """Initialize sampler.
 
+        1. Index input image shapes
+        2. Sort image shapes
+        3. Group image shapes
+        4. Chunk shape groups into batches of size `max_batch_size` (or less)
+
         Args:
             image_shapes (list[ImageShape]): The shapes of images to batch.
             max_batch_size (int): The maximum size (number of images) of each batch.
         """
-        self.image_shapes = image_shapes
-        self.batch_size = max_batch_size
+        self.max_batch_size = max_batch_size
+
+        # Index and sort input image shapes
+        indexed_sorted_image_shapes = sorted(enumerate(image_shapes), key=lambda x: x[1])
 
         # Group by shape
-        shape_groups = split_when(enumerate(self.image_shapes), lambda s1, s2: s1[1] != s2[1])
+        shape_groups = split_when(indexed_sorted_image_shapes, lambda s1, s2: s1[1] != s2[1])
 
         # Chunk shape groups into batches of size `max_batch_size` (or less)
         batched_indexes_per_group = (chunked((idx for idx, _ in grp), max_batch_size) for grp in shape_groups)
