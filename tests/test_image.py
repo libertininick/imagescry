@@ -13,7 +13,14 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.io import write_png
 
-from imagescry.image import ImageShape, SimilarShapeBatcher, normalize_per_channel, read_as_rgb_tensor, resize
+from imagescry.image import (
+    ImageShape,
+    SimilarShapeBatcher,
+    normalize_per_channel,
+    read_as_rgb_tensor,
+    read_image_shape,
+    resize,
+)
 from imagescry.typechecking import typechecker
 
 # Seed
@@ -123,13 +130,17 @@ def test_normalize_per_channel(image_tensor: UInt8[Tensor, "C H W"]) -> None:
     check.is_true(torch.allclose(torch.ones_like(channel_means), channel_stds, atol=1e-4))
 
 
-def test_read_as_tensor_from_file(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
+def test_read_as_rgb_tensor_from_file(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
     """Test reading an image as a tensor from a file."""
     # Write the image to a temporary file
     tempfile = tmp_path / "test.png"
     write_png(image_tensor, tempfile)
 
-    # Read the image as a tensor
+    # Read the image shape
+    image_shape = read_image_shape(tempfile)
+    check.equal(image_shape, ImageShape(*image_tensor.shape[-2:]))
+
+    # Read the image as a RGB tensor
     tensor = read_as_rgb_tensor(tempfile)
 
     # Check the image is read correctly
@@ -137,7 +148,7 @@ def test_read_as_tensor_from_file(image_tensor: UInt8[Tensor, "C H W"], tmp_path
     check.is_true(torch.allclose(tensor, image_tensor, atol=1))
 
 
-def test_read_as_tensor_from_buffer(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
+def test_read_as_rgb_tensor_from_buffer(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
     """Test reading an image as a tensor from a buffer."""
     # Write the image to a temporary file
     tempfile = tmp_path / "test.png"
@@ -151,7 +162,7 @@ def test_read_as_tensor_from_buffer(image_tensor: UInt8[Tensor, "C H W"], tmp_pa
     check.is_true(torch.allclose(tensor, image_tensor, atol=1))
 
 
-def test_read_as_tensor_from_bytes(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
+def test_read_as_rgb_tensor_from_bytes(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
     """Test reading an image as a tensor from bytes."""
     # Write the image to a temporary file
     tempfile = tmp_path / "test.png"

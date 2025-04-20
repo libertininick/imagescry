@@ -228,17 +228,23 @@ def read_as_rgb_tensor(
     return tensor
 
 
-# def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageShape:
-#     """Read the shape of an image file or buffer.
+def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageShape:
+    """Read the shape of an image file or buffer.
 
-#     Args:
-#         image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
+    Args:
+        image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
 
-#     Returns:
-#         ImageShape: The shape of the image.
-#     """
-#     # Read image
-#     img = Image.open(image_source)
+    Returns:
+        ImageShape: The shape of the image.
+    """
+    if isinstance(image_source, bytes):
+        image_source = BytesIO(image_source)
+
+    if not isinstance(image_source, str | PathLike | BytesIO):
+        raise TypeError("image_source must be a file path (str) or a bytes buffer")  # pragma: no cover
+
+    with Image.open(image_source) as img:
+        return ImageShape(img.height, img.width)
 
 
 @jaxtyped(typechecker=typechecker)
