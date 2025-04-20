@@ -25,32 +25,27 @@ class ImageShape:
     """Image shape.
 
     Args:
-        channels (int): Number of channels in the image.
         height (int): Height of the image.
         width (int): Width of the image.
 
     Examples:
-        >>> image_shape = ImageShape(3, 100, 100)
+        >>> image_shape = ImageShape(100, 100)
 
         # Unpack
-        >>> channels, height, width = image_shape
+        >>> height, width = image_shape
 
-        # Get number of channels
-        >>> image_shape.channels
-        3
-
-        # Get height and width
-        >>> h, w = image_shape[-2:]
+        # Get just image height
+        >>> image_shape.height
+        100
 
         # Serialize to JSON
         >>> from pydantic_core import to_json
         >>> to_json(image_shape)
-        b'{"channels":3,"height":100,"width":100}'
+        b'{"height":100,"width":100}'
     """
 
-    channels: int = Field(ge=0)
-    height: int = Field(ge=1)
-    width: int = Field(ge=1)
+    height: int = Field(ge=0)
+    width: int = Field(ge=0)
 
     def __eq__(self, other: object) -> bool:
         """Define equality for sorting."""
@@ -58,19 +53,12 @@ class ImageShape:
             return NotImplemented  # pragma: no cover
         return self.to_tuple() == other.to_tuple()
 
-    def __getitem__(self, index: int | slice) -> int | tuple[int, ...]:
-        """Allow index access."""
-        if isinstance(index, int | slice):
-            return self.to_tuple()[index]
-        raise TypeError("Index must be int or slice")  # pragma: no cover
-
     def __hash__(self) -> int:
         """Hash the image shape."""
         return hash(self.to_tuple())
 
     def __iter__(self) -> Generator[int]:
         """Allow unpacking with * operator."""
-        yield self.channels
         yield self.height
         yield self.width
 
@@ -80,9 +68,9 @@ class ImageShape:
             return NotImplemented  # pragma: no cover
         return self.to_tuple() < other.to_tuple()
 
-    def to_tuple(self) -> tuple[int, int, int]:
-        """Convert to (channels, height, width) tuple."""
-        return (self.channels, self.height, self.width)
+    def to_tuple(self) -> tuple[int, int]:
+        """Convert to (height, width) tuple."""
+        return self.height, self.width
 
 
 class SimilarShapeBatcher(TorchSampler):
@@ -204,17 +192,17 @@ def normalize_per_channel(
 
 
 @jaxtyped(typechecker=typechecker)
-def read_as_tensor(
+def read_as_rgb_tensor(
     image_source: str | PathLike | bytes | BytesIO, device: torch.device | None = None
-) -> UInt8[Tensor, "C H W"]:
-    """Read an image file or buffer and convert it to a PyTorch tensor.
+) -> UInt8[Tensor, "3 H W"]:
+    """Read an image file or buffer, and convert it to a RGB PyTorch tensor.
 
     Args:
         image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
         device (torch.device | None, optional): The device to put the tensor on. Defaults to None, which uses CPU.
 
     Returns:
-        UInt8[Tensor, 'C H W']: Image as a tensor with shape [C, H, W] and values in the range [0, 255]
+        UInt8[Tensor, '3 H W']: Image as a RGB tensor with shape [3, H, W] and values in the range [0, 255]
 
     Raises:
         TypeError: If `image_source` is not a file path (str) or a bytes buffer.
@@ -238,6 +226,19 @@ def read_as_tensor(
         tensor = tensor.to(device)
 
     return tensor
+
+
+# def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageShape:
+#     """Read the shape of an image file or buffer.
+
+#     Args:
+#         image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
+
+#     Returns:
+#         ImageShape: The shape of the image.
+#     """
+#     # Read image
+#     img = Image.open(image_source)
 
 
 @jaxtyped(typechecker=typechecker)
