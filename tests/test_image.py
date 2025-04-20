@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset as TorchDataset
 from torchvision.io import write_png
 
-from imagescry.image import ImageShape, SimilarShapeBatcher, normalize_per_channel, read_as_tensor, resize
+from imagescry.image import ImageShape, SimilarShapeBatcher, normalize_per_channel, read_as_rgb_tensor, resize
 from imagescry.typechecking import typechecker
 
 # Seed
@@ -25,12 +25,11 @@ torch.manual_seed(SEED)
 class VariableSizeImageDataset(TorchDataset):
     """Dataset of images of different sizes."""
 
-    def __init__(self, num_channels: Literal[1, 3], sizes: list[tuple[int, int]]) -> None:
+    def __init__(self, shapes: list[tuple[int, int]]) -> None:
         """Initialize the dataset."""
-        self.num_channels = num_channels
-        self.image_shapes = [ImageShape(num_channels, h, w) for h, w in sizes]
+        self.image_shapes = [ImageShape(h, w) for h, w in shapes]
         self.data = [
-            torch.randint(0, 255, image_shape.to_tuple(), dtype=torch.uint8) for image_shape in self.image_shapes
+            torch.randint(0, 255, (3, *image_shape.to_tuple()), dtype=torch.uint8) for image_shape in self.image_shapes
         ]
 
     def __len__(self) -> int:
@@ -49,13 +48,12 @@ class VariableSizeImageDataset(TorchDataset):
         return torch.tensor(idx), self.data[idx]
 
 
-@pytest.fixture(scope="module", params=[1, 3])
-def variable_size_image_dataset(request: pytest.FixtureRequest) -> VariableSizeImageDataset:
+@pytest.fixture(scope="module")
+def variable_size_image_dataset() -> VariableSizeImageDataset:
     """Create a variable size image dataset test fixture."""
     return VariableSizeImageDataset(
-        num_channels=request.param,
-        # Define a random set of image sizes
-        sizes=[
+        # Define a random set of image shapes
+        shapes=[
             (7, 7),
             (7, 8),
             (8, 8),
@@ -102,7 +100,7 @@ def test_similar_shape_batcher(variable_size_image_dataset: VariableSizeImageDat
         check.less_equal(images.size(0), max_batch_size)
 
         # Check all images in the batch have the same shape
-        check.equal(len({ImageShape(*img.shape[-3:]) for img in images}), 1)
+        check.equal(len({ImageShape(*img.shape[-2:]) for img in images}), 1)
 
         # Add image indexes to the observed set
         observed_image_indexes.update(indexes.tolist())
@@ -132,7 +130,7 @@ def test_read_as_tensor_from_file(image_tensor: UInt8[Tensor, "C H W"], tmp_path
     write_png(image_tensor, tempfile)
 
     # Read the image as a tensor
-    tensor = read_as_tensor(tempfile)
+    tensor = read_as_rgb_tensor(tempfile)
 
     # Check the image is read correctly
     check.equal(tensor.shape, image_tensor.shape)
@@ -146,7 +144,7 @@ def test_read_as_tensor_from_buffer(image_tensor: UInt8[Tensor, "C H W"], tmp_pa
     write_png(image_tensor, tempfile)
 
     # Read the image as a tensor
-    tensor = read_as_tensor(BytesIO(tempfile.read_bytes()))
+    tensor = read_as_rgb_tensor(BytesIO(tempfile.read_bytes()))
 
     # Check the image is read correctly
     check.equal(tensor.shape, image_tensor.shape)
@@ -160,7 +158,7 @@ def test_read_as_tensor_from_bytes(image_tensor: UInt8[Tensor, "C H W"], tmp_pat
     write_png(image_tensor, tempfile)
 
     # Read the image as a tensor
-    tensor = read_as_tensor(tempfile.read_bytes(), device=torch.device("cpu"))
+    tensor = read_as_rgb_tensor(tempfile.read_bytes(), device=torch.device("cpu"))
 
     # Check the image is read correctly
     check.equal(tensor.shape, image_tensor.shape)
