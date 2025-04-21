@@ -207,19 +207,17 @@ def read_as_rgb_tensor(
     Raises:
         TypeError: If `image_source` is not a file path (str) or a bytes buffer.
     """
-    if isinstance(image_source, str | PathLike):
-        # Load from file path
-        img = Image.open(image_source).convert("RGB")
-    elif isinstance(image_source, bytes | BytesIO):
-        # Load from bytes buffer
-        if isinstance(image_source, bytes):
-            image_source = BytesIO(image_source)
-        img = Image.open(image_source).convert("RGB")
-    else:
+    # Convert bytes to bytes buffer
+    if isinstance(image_source, bytes):
+        image_source = BytesIO(image_source)
+
+    # Check that image source is a file path or bytes buffer
+    if not isinstance(image_source, str | PathLike | BytesIO):
         raise TypeError("image_source must be a file path (str) or a bytes buffer")  # pragma: no cover
 
-    # Convert PIL Image to tensor
-    tensor = pil_to_tensor(img)
+    # Open image and convert to RGB tensor
+    with Image.open(image_source) as img:
+        tensor = pil_to_tensor(img.convert("RGB"))
 
     # Move tensor to specified device if provided
     if device is not None:
@@ -237,9 +235,11 @@ def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageSha
     Returns:
         ImageShape: The shape of the image.
     """
+    # Convert bytes to bytes buffer
     if isinstance(image_source, bytes):
         image_source = BytesIO(image_source)
 
+    # Check that image source is a file path or bytes buffer
     if not isinstance(image_source, str | PathLike | BytesIO):
         raise TypeError("image_source must be a file path (str) or a bytes buffer")  # pragma: no cover
 
