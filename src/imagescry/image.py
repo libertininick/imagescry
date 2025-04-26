@@ -125,10 +125,6 @@ class SimilarShapeBatcher(TorchSampler):
         """Iterate over the batches."""
         yield from self.batched_indexes
 
-    def __len__(self) -> int:
-        """Return the number of batches."""
-        return len(self.batched_indexes)
-
 
 @jaxtyped(typechecker=typechecker)
 def normalize_per_channel(
