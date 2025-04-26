@@ -1,6 +1,7 @@
 """Image tools."""
 
 from collections.abc import Generator, Iterable
+from contextlib import contextmanager
 from io import BytesIO
 from itertools import chain
 from os import PathLike
@@ -191,18 +192,15 @@ def normalize_per_channel(
     return image_tensor
 
 
-@jaxtyped(typechecker=typechecker)
-def read_as_rgb_tensor(
-    image_source: str | PathLike | bytes | BytesIO, device: torch.device | None = None
-) -> UInt8[Tensor, "3 H W"]:
-    """Read an image file or buffer, and convert it to a RGB PyTorch tensor.
+@contextmanager
+def open_image_source(image_source: str | PathLike | bytes | BytesIO) -> Generator[Image.Image]:
+    """Context manager for opening a PIL Image object from an image source.
 
     Args:
         image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
-        device (torch.device | None, optional): The device to put the tensor on. Defaults to None, which uses CPU.
 
-    Returns:
-        UInt8[Tensor, '3 H W']: Image as a RGB tensor with shape [3, H, W] and values in the range [0, 255]
+    Yields:
+        Image: The opened PIL Image object.
 
     Raises:
         TypeError: If `image_source` is not a file path (str) or a bytes buffer.
@@ -215,15 +213,25 @@ def read_as_rgb_tensor(
     if not isinstance(image_source, str | PathLike | BytesIO):
         raise TypeError("image_source must be a file path (str) or a bytes buffer")  # pragma: no cover
 
-    # Open image and convert to RGB tensor
     with Image.open(image_source) as img:
-        tensor = pil_to_tensor(img.convert("RGB"))
+        yield img
 
-    # Move tensor to specified device if provided
-    if device is not None:
-        tensor = tensor.to(device)
 
-    return tensor
+@jaxtyped(typechecker=typechecker)
+def read_image_as_rgb_tensor(
+    image_source: str | PathLike | bytes | BytesIO, device: torch.device | None = None
+) -> UInt8[Tensor, "3 H W"]:
+    """Read an image file or buffer, and convert it to a RGB PyTorch tensor.
+
+    Args:
+        image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
+        device (torch.device | None, optional): The device to put the tensor on. Defaults to None, which uses CPU.
+
+    Returns:
+        UInt8[Tensor, '3 H W']: Image as a RGB tensor with shape [3, H, W] and integer values in the range [0, 255]
+    """
+    with open_image_source(image_source) as img:
+        return pil_to_tensor(img.convert("RGB")).to(device=device)
 
 
 def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageShape:
@@ -235,15 +243,7 @@ def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageSha
     Returns:
         ImageShape: The shape of the image.
     """
-    # Convert bytes to bytes buffer
-    if isinstance(image_source, bytes):
-        image_source = BytesIO(image_source)
-
-    # Check that image source is a file path or bytes buffer
-    if not isinstance(image_source, str | PathLike | BytesIO):
-        raise TypeError("image_source must be a file path (str) or a bytes buffer")  # pragma: no cover
-
-    with Image.open(image_source) as img:
+    with open_image_source(image_source) as img:
         return ImageShape(img.height, img.width)
 
 
