@@ -7,6 +7,7 @@ from typing import Literal
 import pytest
 import torch
 from jaxtyping import Int64, UInt8, jaxtyped
+from pytest import FixtureRequest, TempPathFactory
 from pytest_check import check
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -17,7 +18,7 @@ from imagescry.image import (
     ImageShape,
     SimilarShapeBatcher,
     normalize_per_channel,
-    read_as_rgb_tensor,
+    read_image_as_rgb_tensor,
     read_image_shape,
     resize,
 )
@@ -79,12 +80,46 @@ def variable_size_image_dataset() -> VariableSizeImageDataset:
     )
 
 
+@pytest.fixture(scope="module")
+def image_shape() -> ImageShape:
+    """Create a image shape test fixture."""
+    return ImageShape(30, 45)
+
+
 @jaxtyped(typechecker=typechecker)
 @pytest.fixture(scope="module")
-def image_tensor() -> UInt8[Tensor, "3 30 45"]:
+def image_tensor(image_shape: ImageShape) -> UInt8[Tensor, "3 {image_shape.height} {image_shape.width}"]:
     """Create a uint8 image tensor test fixture."""
     torch.manual_seed(1234)
-    return torch.randint(low=0, high=256, size=(3, 30, 45), dtype=torch.uint8)
+    return torch.randint(low=0, high=256, size=(3, *image_shape), dtype=torch.uint8)
+
+
+@pytest.fixture(scope="module")
+def image_source_file(image_tensor: UInt8[Tensor, "3 30 45"], tmp_path_factory: TempPathFactory) -> Path:
+    """Create a test image source file."""
+    temp_file = tmp_path_factory.mktemp("images") / "test.png"
+    write_png(image_tensor, temp_file)
+    return temp_file
+
+
+@pytest.fixture(scope="module")
+def image_source_bytes(image_source_file: Path) -> bytes:
+    """Create a test image source bytes."""
+    with open(image_source_file, "rb") as f:
+        return f.read()
+
+
+@pytest.fixture(scope="module")
+def image_source_buffer(image_source_bytes: bytes) -> BytesIO:
+    """Create a test image source buffer."""
+    return BytesIO(image_source_bytes)
+
+
+@pytest.fixture(params=["image_source_file", "image_source_bytes", "image_source_buffer"])
+def image_source(request: FixtureRequest) -> Path | bytes | BytesIO:
+    """Create a test image source."""
+    # Get the fixture dynamically by name
+    return request.getfixturevalue(request.param)
 
 
 # Tests
@@ -129,52 +164,19 @@ def test_normalize_per_channel(image_tensor: UInt8[Tensor, "C H W"]) -> None:
     check.is_true(torch.allclose(torch.zeros_like(channel_means), channel_means, atol=1e-4))
     check.is_true(torch.allclose(torch.ones_like(channel_means), channel_stds, atol=1e-4))
 
-
-def test_read_as_rgb_tensor_from_file(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
-    """Test reading an image as a tensor from a file."""
-    # Write the image to a temporary file
-    tempfile = tmp_path / "test.png"
-    write_png(image_tensor, tempfile)
-
-    # Read the image shape
-    image_shape = read_image_shape(tempfile)
-    check.equal(image_shape, ImageShape(*image_tensor.shape[-2:]))
-
-    # Read the image as a RGB tensor
-    tensor = read_as_rgb_tensor(tempfile)
-
-    # Check the image is read correctly
-    check.equal(tensor.shape, image_tensor.shape)
-    check.is_true(torch.allclose(tensor, image_tensor, atol=1))
+    # # Read the image shape
+    # image_shape = read_image_shape(tempfile)
+    # check.equal(image_shape, ImageShape(*image_tensor.shape[-2:]))
 
 
-def test_read_as_rgb_tensor_from_buffer(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
-    """Test reading an image as a tensor from a buffer."""
-    # Write the image to a temporary file
-    tempfile = tmp_path / "test.png"
-    write_png(image_tensor, tempfile)
-
-    # Read the image as a tensor
-    tensor = read_as_rgb_tensor(BytesIO(tempfile.read_bytes()))
-
-    # Check the image is read correctly
-    check.equal(tensor.shape, image_tensor.shape)
-    check.is_true(torch.allclose(tensor, image_tensor, atol=1))
+def test_read_image_shape(image_shape: ImageShape, image_source: Path | bytes | BytesIO) -> None:
+    """Test reading the shape of an image."""
+    check.equal(image_shape, read_image_shape(image_source))
 
 
-def test_read_as_rgb_tensor_from_bytes(image_tensor: UInt8[Tensor, "C H W"], tmp_path: Path) -> None:
-    """Test reading an image as a tensor from bytes."""
-    # Write the image to a temporary file
-    tempfile = tmp_path / "test.png"
-    write_png(image_tensor, tempfile)
-
-    # Read the image as a tensor
-    tensor = read_as_rgb_tensor(tempfile.read_bytes(), device=torch.device("cpu"))
-
-    # Check the image is read correctly
-    check.equal(tensor.shape, image_tensor.shape)
-    check.is_true(torch.allclose(tensor, image_tensor, atol=1))
-    check.equal(tensor.device, torch.device("cpu"))
+def test_read_image_as_rgb_tensor(image_tensor: UInt8[Tensor, "C H W"], image_source: Path | bytes | BytesIO) -> None:
+    """Test image read from source matches the original image."""
+    check.is_true(torch.allclose(image_tensor, read_image_as_rgb_tensor(image_source), atol=1))
 
 
 @pytest.mark.parametrize("add_batch", [False, True])
