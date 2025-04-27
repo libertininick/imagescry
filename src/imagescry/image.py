@@ -30,7 +30,7 @@ ImageSource = str | PathLike | bytes | BytesIO
 class ImageShape:
     """Image shape.
 
-    Args:
+    Attributes:
         height (int): Height of the image.
         width (int): Width of the image.
 
