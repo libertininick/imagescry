@@ -6,15 +6,15 @@ from typing import Literal
 
 import pytest
 import torch
-from jaxtyping import Int64, UInt8, jaxtyped
+from jaxtyping import UInt8, jaxtyped
 from pytest import FixtureRequest, TempPathFactory
 from pytest_check import check
 from torch import Tensor
 from torch.utils.data import DataLoader
-from torch.utils.data import Dataset as TorchDataset
 from torchvision.io import write_png
 
 from imagescry.image import (
+    ImageFilesDataset,
     ImageShape,
     SimilarShapeBatcher,
     normalize_per_channel,
@@ -30,54 +30,35 @@ torch.manual_seed(SEED)
 
 
 # Fixtures
-class VariableSizeImageDataset(TorchDataset):
-    """Dataset of images of different sizes."""
-
-    def __init__(self, shapes: list[tuple[int, int]]) -> None:
-        """Initialize the dataset."""
-        self.image_shapes = [ImageShape(h, w) for h, w in shapes]
-        self.data = [
-            torch.randint(0, 255, (3, *image_shape.to_tuple()), dtype=torch.uint8) for image_shape in self.image_shapes
-        ]
-
-    def __len__(self) -> int:
-        """Get the number of images in the dataset."""
-        return len(self.data)
-
-    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "C H W"]]:
-        """Get an image and its index from the dataset.
-
-        Args:
-            idx (int): The index of the image to get.
-
-        Returns:
-            tuple[Int64[Tensor, ""], UInt8[Tensor, "C H W"]]: A tuple containing the index and the image.
-        """
-        return torch.tensor(idx), self.data[idx]
-
-
 @pytest.fixture(scope="module")
-def variable_size_image_dataset() -> VariableSizeImageDataset:
+def variable_size_image_dataset(tmp_path_factory: TempPathFactory) -> ImageFilesDataset:
     """Create a variable size image dataset test fixture."""
-    return VariableSizeImageDataset(
-        # Define a random set of image shapes
-        shapes=[
-            (7, 7),
-            (7, 8),
-            (8, 8),
-            (8, 8),
-            (7, 7),
-            (5, 7),
-            (8, 8),
-            (8, 7),
-            (8, 7),
-            (7, 7),
-            (7, 7),
-            (2, 2),
-            (3, 2),
-            (2, 2),
-        ],
-    )
+    # Generate a set of image with random shapes and save them to disk
+    image_dir = tmp_path_factory.mktemp("images")
+    image_files: list[Path] = []
+    shapes = [
+        (7, 7),
+        (7, 8),
+        (8, 8),
+        (8, 8),
+        (7, 7),
+        (5, 7),
+        (8, 8),
+        (8, 7),
+        (8, 7),
+        (7, 7),
+        (7, 7),
+        (2, 2),
+        (3, 2),
+        (2, 2),
+    ]
+    for i, shape in enumerate(shapes):
+        image_tensor = torch.randint(0, 255, (3, *shape), dtype=torch.uint8)
+        image_file = image_dir / f"{i}.png"
+        image_files.append(image_file)
+        write_png(image_tensor, image_file)
+
+    return ImageFilesDataset(sources=image_files)
 
 
 @pytest.fixture(scope="module")
@@ -124,7 +105,7 @@ def image_source(request: FixtureRequest) -> Path | bytes | BytesIO:
 
 # Tests
 @pytest.mark.parametrize("max_batch_size", [1, 2, 3, 4])
-def test_similar_shape_batcher(variable_size_image_dataset: VariableSizeImageDataset, max_batch_size: int) -> None:
+def test_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, max_batch_size: int) -> None:
     """Test the similar shape batcher groups images into batches by imagesize."""
     # Create a dataloader with the similar shape batcher
     dataloader = DataLoader(
@@ -142,7 +123,11 @@ def test_similar_shape_batcher(variable_size_image_dataset: VariableSizeImageDat
         check.less_equal(images.size(0), max_batch_size)
 
         # Check all images in the batch have the same shape
-        check.equal(len({ImageShape(*img.shape[-2:]) for img in images}), 1)
+        shapes = [ImageShape(*img.shape[-2:]) for img in images]
+        expected_shapes = variable_size_image_dataset.image_shapes[indexes.tolist()].tolist()
+        num_unique_shapes = len(set(expected_shapes))
+        check.equal(expected_shapes, shapes)
+        check.equal(num_unique_shapes, 1)
 
         # Add image indexes to the observed set
         observed_image_indexes.update(indexes.tolist())

@@ -5,20 +5,24 @@ from contextlib import contextmanager
 from io import BytesIO
 from itertools import chain
 from os import PathLike
+from pathlib import Path
 from typing import Literal
 
+import pandas as pd
 import torch
-from jaxtyping import Float, Num, Shaped, UInt8, jaxtyped
+from jaxtyping import Float, Int64, Num, Shaped, UInt8, jaxtyped
 from more_itertools import chunked, split_when
 from PIL import Image
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 from torch import Tensor
 from torch.nn.functional import interpolate
-from torch.utils.data import Sampler as TorchSampler
+from torch.utils.data import Dataset, Sampler
 from torchvision.transforms.functional import pil_to_tensor
 
 from imagescry.typechecking import typechecker
+
+ImageSource = str | PathLike | bytes | BytesIO
 
 
 @dataclass(frozen=True)
@@ -74,7 +78,7 @@ class ImageShape:
         return self.height, self.width
 
 
-class SimilarShapeBatcher(TorchSampler):
+class SimilarShapeBatcher(Sampler):
     """Sampler for grouping images by shape and batching them.
 
     This sampler will:
@@ -124,6 +128,62 @@ class SimilarShapeBatcher(TorchSampler):
     def __iter__(self) -> Generator[list[int]]:
         """Iterate over the batches."""
         yield from self.batched_indexes
+
+
+class ImageFilesDataset(Dataset):
+    """Dataset of UInt8 RGB images stored on disk.
+
+    - Each image is read as a uint8 tensor with shape `(3, H, W)`
+    - The image's index in the dataset is returned as a tuple with the image tensor: `(index, image_tensor)`
+    - Not all images need to have the same spatial dimensions.
+    """
+
+    def __init__(self, sources: Iterable[str | PathLike]) -> None:
+        """Initialize the dataset.
+
+        Args:
+            sources (Iterable[str | PathLike]): Iterable of image sources.
+
+        Raises:
+            FileNotFoundError: If any image source does not exist.
+        """
+        # Check that all image sources exist
+        valid_sources: list[Path] = []
+        shapes: list[ImageShape] = []
+        for fp in sources:
+            # Convert to absolute path
+            src = Path(fp).absolute()
+
+            # Check that image source exists
+            if src.exists() and src.is_file():
+                valid_sources.append(src)
+                shapes.append(read_image_shape(src))
+            else:
+                raise FileNotFoundError(f"Image source {src} does not exist")
+
+        # Store image sources and shapes as a pandas Series (for fast indexing)
+        self.image_sources = pd.Series(valid_sources)
+        self.image_shapes = pd.Series(shapes)
+
+    def __len__(self) -> int:
+        """Return the number of images in the dataset."""
+        return len(self.image_sources)
+
+    @jaxtyped(typechecker=typechecker)
+    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
+        """Get an image and its index from the dataset.
+
+        Args:
+            idx (int): The index of the image to get.
+
+        Returns:
+            tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
+        """
+        # Read image and extract tensor
+        image_tensor = read_image_as_rgb_tensor(self.image_sources[idx])
+
+        # Return image index and tensor
+        return torch.tensor(idx), image_tensor
 
 
 @jaxtyped(typechecker=typechecker)
@@ -189,11 +249,11 @@ def normalize_per_channel(
 
 
 @contextmanager
-def open_image_source(image_source: str | PathLike | bytes | BytesIO) -> Generator[Image.Image]:
+def open_image_source(image_source: ImageSource) -> Generator[Image.Image]:
     """Context manager for opening a PIL Image object from an image source.
 
     Args:
-        image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
+        image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
 
     Yields:
         Image: The opened PIL Image object.
@@ -214,13 +274,11 @@ def open_image_source(image_source: str | PathLike | bytes | BytesIO) -> Generat
 
 
 @jaxtyped(typechecker=typechecker)
-def read_image_as_rgb_tensor(
-    image_source: str | PathLike | bytes | BytesIO, device: torch.device | None = None
-) -> UInt8[Tensor, "3 H W"]:
+def read_image_as_rgb_tensor(image_source: ImageSource, device: torch.device | None = None) -> UInt8[Tensor, "3 H W"]:
     """Read an image file or buffer, and convert it to a RGB PyTorch tensor.
 
     Args:
-        image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
+        image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
         device (torch.device | None, optional): The device to put the tensor on. Defaults to None, which uses CPU.
 
     Returns:
@@ -230,11 +288,11 @@ def read_image_as_rgb_tensor(
         return pil_to_tensor(img.convert("RGB")).to(device=device)
 
 
-def read_image_shape(image_source: str | PathLike | bytes | BytesIO) -> ImageShape:
+def read_image_shape(image_source: ImageSource) -> ImageShape:
     """Read the shape of an image file or buffer.
 
     Args:
-        image_source (str | PathLike | bytes | BytesIO): Path to file or a bytes buffer containing the image data.
+        image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
 
     Returns:
         ImageShape: The shape of the image.
