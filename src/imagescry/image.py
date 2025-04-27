@@ -109,7 +109,7 @@ class SimilarShapeBatcher(Sampler):
         """Initialize sampler.
 
         Args:
-            image_shapes (list[ImageShape]): The shapes of images to batch.
+            image_shapes (Iterable[ImageShape]): The shapes of images to batch.
             max_batch_size (int): The maximum size (number of images) of each batch.
         """
         self.max_batch_size = max_batch_size
