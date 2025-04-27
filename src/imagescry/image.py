@@ -6,7 +6,7 @@ from io import BytesIO
 from itertools import chain
 from os import PathLike
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
 
 import pandas as pd
 import torch
@@ -175,7 +175,7 @@ class ImageFilesDataset(Dataset):
                 valid_sources.append(src)
                 shapes.append(read_image_shape(src))
             else:
-                raise FileNotFoundError(f"Image source {src} does not exist")
+                raise FileNotFoundError(f"Image source {src} does not exist or is not a file")  # pragma: no cover
 
         # Store image sources and shapes as a pandas Series (for fast indexing)
         self.image_sources = pd.Series(valid_sources)
@@ -184,6 +184,26 @@ class ImageFilesDataset(Dataset):
     def __len__(self) -> int:
         """Return the number of images in the dataset."""
         return len(self.image_sources)
+
+    @classmethod
+    def from_directory(
+        cls, directory: str | PathLike, *, pattern: str = "**/*[.jpg,.jpeg,.png]*", case_sensitive: bool = False
+    ) -> Self:
+        """Create a dataset from a directory of images.
+
+        Args:
+            directory (str | PathLike): The directory to create the dataset from.
+            pattern (str, optional): The glob pattern to use to find images. Defaults to "**/*[.jpg,.jpeg,.png]*".
+            case_sensitive (bool, optional): Whether the pattern should be case sensitive. Defaults to False.
+
+        Returns:
+            ImageFilesDataset: The created dataset.
+        """
+        if (directory := Path(directory)).is_dir():
+            # Create dataset from glob pattern
+            return cls(directory.glob(pattern, case_sensitive=case_sensitive))
+        else:
+            raise FileNotFoundError(f"Directory {directory} does not exist")  # pragma: no cover
 
 
 @jaxtyped(typechecker=typechecker)

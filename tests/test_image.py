@@ -35,7 +35,6 @@ def variable_size_image_dataset(tmp_path_factory: TempPathFactory) -> ImageFiles
     """Create a variable size image dataset test fixture."""
     # Generate a set of image with random shapes and save them to disk
     image_dir = tmp_path_factory.mktemp("images")
-    image_files: list[Path] = []
     shapes = [
         (7, 7),
         (7, 8),
@@ -54,11 +53,9 @@ def variable_size_image_dataset(tmp_path_factory: TempPathFactory) -> ImageFiles
     ]
     for i, shape in enumerate(shapes):
         image_tensor = torch.randint(0, 255, (3, *shape), dtype=torch.uint8)
-        image_file = image_dir / f"{i}.png"
-        image_files.append(image_file)
-        write_png(image_tensor, image_file)
+        write_png(image_tensor, image_dir / f"{i}.png")
 
-    return ImageFilesDataset(sources=image_files)
+    return ImageFilesDataset.from_directory(image_dir)
 
 
 @pytest.fixture(scope="module")
