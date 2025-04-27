@@ -105,7 +105,7 @@ def image_source_file(image_tensor: UInt8[Tensor, "3 30 45"], tmp_path_factory: 
 @pytest.fixture(scope="module")
 def image_source_bytes(image_source_file: Path) -> bytes:
     """Create a test image source bytes."""
-    with open(image_source_file, "rb") as f:
+    with image_source_file.open("rb") as f:
         return f.read()
 
 
