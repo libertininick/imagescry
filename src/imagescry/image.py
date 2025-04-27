@@ -198,7 +198,10 @@ class ImageFilesDataset(Dataset):
             case_sensitive (bool, optional): Whether the pattern should be case sensitive. Defaults to False.
 
         Returns:
-            ImageFilesDataset: The created dataset.
+            Self: An instance of `ImageFilesDataset`.
+
+        Raises:
+            FileNotFoundError: If the directory does not exist.
         """
         if (directory := Path(directory)).is_dir():
             # Create dataset from glob pattern
