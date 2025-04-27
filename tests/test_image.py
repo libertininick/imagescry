@@ -17,6 +17,7 @@ from imagescry.image import (
     ImageFilesDataset,
     ImageShape,
     SimilarShapeBatcher,
+    get_image_hash,
     normalize_per_channel,
     read_image_as_rgb_tensor,
     read_image_shape,
@@ -101,6 +102,15 @@ def image_source(request: FixtureRequest) -> Path | bytes | BytesIO:
 
 
 # Tests
+def test_get_image_hash(image_source: Path | bytes | BytesIO) -> None:
+    """Test getting the hash of an image is consistent."""
+    if isinstance(image_source, Path | bytes):
+        check.equal(get_image_hash(image_source), get_image_hash(image_source))
+    else:
+        cloned_buffer = BytesIO(image_source.getvalue())
+        check.equal(get_image_hash(image_source), get_image_hash(cloned_buffer))
+
+
 @pytest.mark.parametrize("max_batch_size", [1, 2, 3, 4])
 def test_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, max_batch_size: int) -> None:
     """Test the similar shape batcher groups images into batches by imagesize."""
