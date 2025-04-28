@@ -28,6 +28,10 @@ class PCA(LightningModule):
             min_explained_variance (float, optional): The minimum percentage of variance that the PCA should explain.
                 If `max_num_components` is not provided, this will be used to determine the maximum number of
                 components. Defaults to 0.0.
+
+        Raises:
+            ValueError: If the number of components is less than 1, or if the minimum number of components is greater
+                than the maximum number of components, or if the minimum explained variance is not between 0.0 and 1.0.
         """
         super().__init__()
 
@@ -132,10 +136,10 @@ class PCA(LightningModule):
         """Project the input data to a lower dimensional space.
 
         Args:
-            x (Float[Tensor, 'num_samples {self.num_features}']): Input data.
+            x (Float[Tensor, 'num_samples num_features']): Input data.
 
         Returns:
-            Float[Tensor, 'num_samples {self.num_components}']: Projected data.
+            Float[Tensor, 'num_samples self.num_components']: Projected data.
 
         Raises:
             RuntimeError: If the PCA model is not fitted.
