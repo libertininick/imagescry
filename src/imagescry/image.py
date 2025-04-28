@@ -14,6 +14,7 @@ import torch
 from jaxtyping import Float, Int64, Num, Shaped, UInt8, jaxtyped
 from more_itertools import chunked, split_when
 from PIL import Image
+from PIL.ImageFile import ImageFile
 from pydantic import Field
 from pydantic.dataclasses import dataclass
 from torch import Tensor
@@ -302,18 +303,8 @@ def normalize_per_channel(
 
 
 @contextmanager
-def open_image_source(image_source: ImageSource) -> Generator[Image.Image]:
-    """Context manager for opening a PIL Image object from an image source.
-
-    Args:
-        image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
-
-    Yields:
-        Image: The opened PIL Image object.
-
-    Raises:
-        TypeError: If `image_source` is not a file path (str) or a bytes buffer.
-    """
+def open_image_source(image_source: ImageSource) -> Generator[ImageFile]:
+    """Context manager for opening a PIL Image object from an image source."""
     # Convert bytes to bytes buffer
     if isinstance(image_source, bytes):
         image_source = BytesIO(image_source)
