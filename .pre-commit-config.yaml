@@ -12,9 +12,9 @@ repos:
       - id: ruff-format
         types_or: [ python, pyi, jupyter ]
 
-  # pydoclint pre-commit hooks
+  # pydoclint pre-commit hook
   - repo: https://github.com/jsh9/pydoclint
     rev: 0.6.6
     hooks:
       - id: pydoclint
-        args: [--style=google, --allow-init-docstring=True]
+        args: [--style=google, --check-return-types=False]
