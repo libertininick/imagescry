@@ -139,7 +139,7 @@ class PCA(LightningModule):
             x (Float[Tensor, 'num_samples num_features']): Input data.
 
         Returns:
-            Float[Tensor, 'num_samples self.num_components']: Projected data.
+            Float[Tensor, 'num_samples num_components']: Projected data.
 
         Raises:
             RuntimeError: If the PCA model is not fitted.
