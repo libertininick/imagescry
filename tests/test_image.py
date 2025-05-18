@@ -15,6 +15,7 @@ from torchvision.io import write_png
 
 from imagescry.image import (
     ImageFilesDataset,
+    ImageInfo,
     ImageShape,
     SimilarShapeBatcher,
     get_image_hash,
@@ -109,6 +110,31 @@ def test_get_image_hash(image_source: Path | bytes | BytesIO) -> None:
     else:
         cloned_buffer = BytesIO(image_source.getvalue())
         check.equal(get_image_hash(image_source), get_image_hash(cloned_buffer))
+
+
+def test_image_info_creation(image_source_file: Path) -> None:
+    """Test creating an ImageInfo instance from a valid image source."""
+    # Create ImageInfo instance
+    image_info = ImageInfo.from_source(image_source_file)
+
+    # Check attributes
+    check.equal(image_info.source, image_source_file.absolute())
+    check.equal(image_info.shape, read_image_shape(image_source_file))
+    check.equal(image_info.hash, get_image_hash(image_source_file))
+
+
+def test_image_info_invalid_source(tmp_path: Path) -> None:
+    """Test creating an ImageInfo instance from an invalid image source."""
+    # Try to create ImageInfo from non-existent file
+    non_existent_file = tmp_path / "non_existent.png"
+    with pytest.raises(
+        FileNotFoundError, match=f"Image source {non_existent_file.absolute()} does not exist or is not a file"
+    ):
+        ImageInfo.from_source(non_existent_file)
+
+    # Try to create ImageInfo from a directory
+    with pytest.raises(FileNotFoundError, match=f"Image source {tmp_path.absolute()} does not exist or is not a file"):
+        ImageInfo.from_source(tmp_path)
 
 
 @pytest.mark.parametrize("max_batch_size", [1, 2, 3, 4])
