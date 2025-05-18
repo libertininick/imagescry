@@ -12,6 +12,7 @@ from typing import Literal, Self
 import pandas as pd
 import torch
 from jaxtyping import Float, Int64, Num, Shaped, UInt8, jaxtyped
+from joblib import Parallel, delayed
 from more_itertools import chunked, split_when
 from PIL import Image
 from PIL.ImageFile import ImageFile
@@ -80,6 +81,119 @@ class ImageShape:
         return self.height, self.width
 
 
+@dataclass(frozen=True)
+class ImageInfo:
+    """Information about an image source.
+
+    Attributes:
+        source (Path): Path to the image file.
+        shape (ImageShape): Shape of the image.
+        hash (str): MD5 hash of the image.
+    """
+
+    source: Path
+    shape: ImageShape
+    hash: str
+
+    @classmethod
+    def from_source(cls, source: str | PathLike) -> "ImageInfo":
+        """Create an ImageInfo instance from a source path.
+
+        Args:
+            source (str | PathLike): Path to the image file.
+
+        Returns:
+            ImageInfo: Information about the image source.
+
+        Raises:
+            FileNotFoundError: If the image source does not exist or is not a file.
+        """
+        src = Path(source).absolute()
+        if not (src.exists() and src.is_file()):
+            raise FileNotFoundError(f"Image source {src} does not exist or is not a file")
+        return cls(source=src, shape=read_image_shape(src), hash=get_image_hash(src))
+
+
+class ImageFilesDataset(Dataset):
+    """Dataset of UInt8 RGB images stored on disk.
+
+    - Each image is read as a uint8 tensor with shape `(3, H, W)`
+    - The image's index in the dataset is returned as a tuple with the image tensor: `(index, image_tensor)`
+    - Not all images need to have the same spatial dimensions.
+    """
+
+    # Minimum number of files to use parallel processing
+    PARALLEL_THRESHOLD = 10
+
+    def __init__(self, sources: Iterable[str | PathLike], *, num_jobs: int = -1) -> None:
+        """Initialize the dataset.
+
+        Args:
+            sources (Iterable[str | PathLike]): Iterable of image sources.
+            num_jobs (int, optional): Number of parallel jobs. -1 means using all processors.
+                Only used if number of sources exceeds PARALLEL_THRESHOLD. Defaults to -1.
+
+        """
+        # Convert sources to list to get length and allow multiple iterations
+        sources_list = list(sources)
+        num_sources = len(sources_list)
+
+        if num_sources >= self.PARALLEL_THRESHOLD:
+            # Process all image sources in parallel
+            image_infos = Parallel(n_jobs=num_jobs)(delayed(ImageInfo.from_source)(fp) for fp in sources_list)
+        else:
+            # Process sequentially for small number of files
+            image_infos = [ImageInfo.from_source(fp) for fp in sources_list]
+
+        # Unpack results
+        self.image_sources = pd.Series([info.source for info in image_infos])
+        self.image_shapes = pd.Series([info.shape for info in image_infos])
+        self.image_hashes = pd.Series([info.hash for info in image_infos])
+
+    @jaxtyped(typechecker=typechecker)
+    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
+        """Get an image and its index from the dataset.
+
+        Args:
+            idx (int): The index of the image to get.
+
+        Returns:
+            tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
+        """
+        # Read image and extract tensor
+        image_tensor = read_image_as_rgb_tensor(self.image_sources[idx])
+
+        # Return image index and tensor
+        return torch.tensor(idx), image_tensor
+
+    def __len__(self) -> int:
+        """Return the number of images in the dataset."""
+        return len(self.image_sources)
+
+    @classmethod
+    def from_directory(
+        cls, directory: str | PathLike, *, pattern: str = "**/*[.jpg,.jpeg,.png]*", case_sensitive: bool = False
+    ) -> Self:
+        """Create a dataset from a directory of images.
+
+        Args:
+            directory (str | PathLike): The directory to create the dataset from.
+            pattern (str, optional): The glob pattern to use to find images. Defaults to "**/*[.jpg,.jpeg,.png]*".
+            case_sensitive (bool, optional): Whether the pattern should be case sensitive. Defaults to False.
+
+        Returns:
+            Self: An instance of `ImageFilesDataset`.
+
+        Raises:
+            FileNotFoundError: If the directory does not exist.
+        """
+        if (directory := Path(directory)).is_dir():
+            # Create dataset from glob pattern
+            return cls(directory.glob(pattern, case_sensitive=case_sensitive))
+        else:
+            raise FileNotFoundError(f"Directory {directory} does not exist")  # pragma: no cover
+
+
 class SimilarShapeBatcher(Sampler):
     """Sampler for grouping images by shape and batching them.
 
@@ -130,85 +244,6 @@ class SimilarShapeBatcher(Sampler):
     def __iter__(self) -> Generator[list[int]]:
         """Iterate over the batches."""
         yield from self.batched_indexes
-
-
-class ImageFilesDataset(Dataset):
-    """Dataset of UInt8 RGB images stored on disk.
-
-    - Each image is read as a uint8 tensor with shape `(3, H, W)`
-    - The image's index in the dataset is returned as a tuple with the image tensor: `(index, image_tensor)`
-    - Not all images need to have the same spatial dimensions.
-    """
-
-    def __init__(self, sources: Iterable[str | PathLike]) -> None:
-        """Initialize the dataset.
-
-        Args:
-            sources (Iterable[str | PathLike]): Iterable of image sources.
-
-        Raises:
-            FileNotFoundError: If any image source does not exist.
-        """
-        # Check that all image sources exist
-        valid_sources: list[Path] = []
-        shapes: list[ImageShape] = []
-        for fp in sources:
-            # Convert to absolute path
-            src = Path(fp).absolute()
-
-            # Check that image source exists
-            if src.exists() and src.is_file():
-                valid_sources.append(src)
-                shapes.append(read_image_shape(src))
-            else:
-                raise FileNotFoundError(f"Image source {src} does not exist or is not a file")  # pragma: no cover
-
-        # Store image sources and shapes as a pandas Series (for fast indexing)
-        self.image_sources = pd.Series(valid_sources)
-        self.image_shapes = pd.Series(shapes)
-
-    @jaxtyped(typechecker=typechecker)
-    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
-        """Get an image and its index from the dataset.
-
-        Args:
-            idx (int): The index of the image to get.
-
-        Returns:
-            tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
-        """
-        # Read image and extract tensor
-        image_tensor = read_image_as_rgb_tensor(self.image_sources[idx])
-
-        # Return image index and tensor
-        return torch.tensor(idx), image_tensor
-
-    def __len__(self) -> int:
-        """Return the number of images in the dataset."""
-        return len(self.image_sources)
-
-    @classmethod
-    def from_directory(
-        cls, directory: str | PathLike, *, pattern: str = "**/*[.jpg,.jpeg,.png]*", case_sensitive: bool = False
-    ) -> Self:
-        """Create a dataset from a directory of images.
-
-        Args:
-            directory (str | PathLike): The directory to create the dataset from.
-            pattern (str, optional): The glob pattern to use to find images. Defaults to "**/*[.jpg,.jpeg,.png]*".
-            case_sensitive (bool, optional): Whether the pattern should be case sensitive. Defaults to False.
-
-        Returns:
-            Self: An instance of `ImageFilesDataset`.
-
-        Raises:
-            FileNotFoundError: If the directory does not exist.
-        """
-        if (directory := Path(directory)).is_dir():
-            # Create dataset from glob pattern
-            return cls(directory.glob(pattern, case_sensitive=case_sensitive))
-        else:
-            raise FileNotFoundError(f"Directory {directory} does not exist")  # pragma: no cover
 
 
 def get_image_hash(image_source: ImageSource, *, buffer_size: int = 65_536) -> str:
