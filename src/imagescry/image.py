@@ -123,7 +123,7 @@ class ImageFilesDataset(Dataset):
     """
 
     # Minimum number of files to use parallel processing
-    PARALLEL_THRESHOLD = 10
+    PARALLEL_THRESHOLD = 500
 
     def __init__(self, sources: Iterable[str | PathLike], *, num_jobs: int = -1) -> None:
         """Initialize the dataset.
