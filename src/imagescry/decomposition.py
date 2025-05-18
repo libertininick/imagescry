@@ -11,8 +11,7 @@ from imagescry.typechecking import typechecker
 class PCA(LightningModule):
     """Principal component analysis (PCA).
 
-    Linear dimensionality reduction using Singular Value Decomposition of the data to project it to a lower dimensional
-    space.
+    Linear projection of the data to a lower dimensional space using Singular Value Decomposition.
     """
 
     def __init__(
@@ -54,8 +53,9 @@ class PCA(LightningModule):
         })
 
         # Define parameters to fit
-        self._num_features: nn.Parameter
-        self._num_components: nn.Parameter
+        self._fitted = nn.Parameter(torch.tensor(False), requires_grad=False)
+        self._num_features = nn.Parameter(torch.tensor(0), requires_grad=False)
+        self._num_components = nn.Parameter(torch.tensor(0), requires_grad=False)
         self.feature_means: nn.Parameter
         self.explained_variance: nn.Parameter
         self.component_vectors: nn.Parameter
@@ -129,6 +129,9 @@ class PCA(LightningModule):
         # Select components
         self.component_vectors = nn.Parameter(v[:, :num_components], requires_grad=False)
 
+        # Set fitted flag
+        self._fitted = nn.Parameter(torch.tensor(True), requires_grad=False)
+
         return self
 
     @jaxtyped(typechecker=typechecker)
@@ -151,12 +154,7 @@ class PCA(LightningModule):
     @property
     def fitted(self) -> bool:
         """bool: Whether the PCA model has been fitted."""
-        try:
-            # Check that the number of components is between 1 and the number of features
-            return 1 <= self.num_components <= self.num_features
-        except AttributeError:
-            # If the number of components or features is not set, the model is not fitted
-            return False
+        return bool(self._fitted.item())
 
     @property
     def num_features(self) -> int:
