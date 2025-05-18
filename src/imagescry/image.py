@@ -313,8 +313,8 @@ def open_image_source(image_source: ImageSource) -> Generator[ImageFile]:
     if not isinstance(image_source, str | PathLike | BytesIO):
         raise TypeError("image_source must be a file path (str) or a bytes buffer")  # pragma: no cover
 
-    with Image.open(image_source) as img:
-        yield img
+    with Image.open(image_source) as img_file:
+        yield img_file
 
 
 @jaxtyped(typechecker=typechecker)
