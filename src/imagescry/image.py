@@ -140,22 +140,6 @@ class ImageFilesDataset(Dataset):
     - Not all images need to have the same spatial dimensions.
     """
 
-    @jaxtyped(typechecker=typechecker)
-    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
-        """Get an image and its index from the dataset.
-
-        Args:
-            idx (int): The index of the image to get.
-
-        Returns:
-            tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
-        """
-        # Read image and extract tensor
-        image_tensor = read_image_as_rgb_tensor(self.image_sources[idx])
-
-        # Return image index and tensor
-        return torch.tensor(idx), image_tensor
-
     def __init__(self, sources: Iterable[str | PathLike]) -> None:
         """Initialize the dataset.
 
@@ -182,6 +166,22 @@ class ImageFilesDataset(Dataset):
         # Store image sources and shapes as a pandas Series (for fast indexing)
         self.image_sources = pd.Series(valid_sources)
         self.image_shapes = pd.Series(shapes)
+
+    @jaxtyped(typechecker=typechecker)
+    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
+        """Get an image and its index from the dataset.
+
+        Args:
+            idx (int): The index of the image to get.
+
+        Returns:
+            tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
+        """
+        # Read image and extract tensor
+        image_tensor = read_image_as_rgb_tensor(self.image_sources[idx])
+
+        # Return image index and tensor
+        return torch.tensor(idx), image_tensor
 
     def __len__(self) -> int:
         """Return the number of images in the dataset."""
