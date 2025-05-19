@@ -108,25 +108,25 @@ class AbstractArray(Generic[T], Sequence):  # noqa: UP046
             item_reprs += f", ... ({len(self) - 5} more)"
         return f"{self.__class__.__name__}([{item_reprs}])"
 
-    def filter(self, predicate: Callable[[T], bool]) -> "AbstractArray[T]":
-        """Return a new collection with items that satisfy the predicate."""
-        return self.__class__(item for item in self._items if predicate(item))
+    def append(self, item: T) -> None:
+        """Add an item to the end of the collection."""
+        self._items.append(item)
 
     def batch(self, batch_size: int) -> list["AbstractArray[T]"]:
         """Split the collection into batches of specified size."""
         return [self.__class__(batch) for batch in chunked(self._items, batch_size)]
 
-    def take(self, indices: Sequence[int]) -> "AbstractArray[T]":
-        """Take items at the specified indices."""
-        return self.__class__(self._items[i] for i in indices)
-
-    def append(self, item: T) -> None:
-        """Add an item to the end of the collection."""
-        self._items.append(item)
-
     def extend(self, items: Iterable[T]) -> None:
         """Add multiple items to the end of the collection."""
         self._items.extend(items)
+
+    def filter(self, predicate: Callable[[T], bool]) -> "AbstractArray[T]":
+        """Return a new collection with items that satisfy the predicate."""
+        return self.__class__(item for item in self._items if predicate(item))
+
+    def take(self, indices: Sequence[int]) -> "AbstractArray[T]":
+        """Take items at the specified indices."""
+        return self.__class__(self._items[i] for i in indices)
 
     def _get_item_sequence(self, key: Sequence[int] | Sequence[bool]) -> "AbstractArray[T]":
         """Get a sequence of items from the collection using a boolean mask or integer index."""
