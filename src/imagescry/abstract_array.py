@@ -19,8 +19,7 @@ Examples:
     ...         return f"Point(x={self.x}, y={self.y})"
 
     Define an array container for the custom class
-    >>> class Points(AbstractArray[Point]):
-    ...     pass
+    >>> class Points(AbstractArray[Point]): ...
 
     Create an array of points
     >>> points = Points([Point(x=1, y=2), Point(x=3, y=4), Point(x=5, y=6)])
@@ -48,15 +47,41 @@ Examples:
     Batching
     >>> points.batch(2)
     [Points([Point(x=1, y=2), Point(x=3, y=4)]), Points([Point(x=5, y=6)])]
+
+    Sorting
+    >>> points.sort(lambda point: point.x, reverse=True)
+    Points([Point(x=5, y=6), Point(x=3, y=4), Point(x=1, y=2)])
+
 """
 
 import itertools
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from typing import TypeGuard, TypeVar, overload
+from typing import Protocol, TypeGuard, TypeVar, overload
 
 from more_itertools import chunked
 
 T = TypeVar("T")
+T_contra = TypeVar("T_contra", contravariant=True)
+
+
+class SupportsRichComparison(Protocol[T_contra]):
+    """Protocol for objects that support rich comparison operations."""
+
+    def __lt__(self, other: T_contra) -> bool:
+        """Less than comparison."""
+        ...
+
+    def __le__(self, other: T_contra) -> bool:
+        """Less than or equal to comparison."""
+        ...
+
+    def __gt__(self, other: T_contra) -> bool:
+        """Greater than comparison."""
+        ...
+
+    def __ge__(self, other: T_contra) -> bool:
+        """Greater than or equal to comparison."""
+        ...
 
 
 class AbstractArray[T](Sequence):
@@ -123,6 +148,10 @@ class AbstractArray[T](Sequence):
     def filter(self, predicate: Callable[[T], bool]) -> "AbstractArray[T]":
         """Return a new collection with items that satisfy the predicate."""
         return self.__class__(item for item in self._items if predicate(item))
+
+    def sort(self, key: Callable[[T], SupportsRichComparison], *, reverse: bool = False) -> "AbstractArray[T]":
+        """Return a new collection with items sorted by the key function."""
+        return self.__class__(sorted(self._items, key=key, reverse=reverse))
 
     def take(self, indices: Sequence[int]) -> "AbstractArray[T]":
         """Take items at the specified indices."""
