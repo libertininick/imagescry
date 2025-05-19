@@ -108,6 +108,9 @@ class AbstractArray[T](Sequence):
     @overload
     def __getitem__(self, key: slice) -> "AbstractArray[T]": ...
 
+    @overload
+    def __getitem__(self, key: Sequence[int] | Sequence[bool]) -> "AbstractArray[T]": ...
+
     def __getitem__(self, key: int | slice | Sequence[int] | Sequence[bool]) -> T | "AbstractArray[T]":
         """Support flexible indexing similar to NumPy arrays."""
         if isinstance(key, int):
