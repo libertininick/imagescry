@@ -52,14 +52,14 @@ Examples:
 
 import itertools
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from typing import Generic, TypeGuard, TypeVar, overload
+from typing import TypeGuard, TypeVar, overload
 
 from more_itertools import chunked
 
 T = TypeVar("T")
 
 
-class AbstractArray(Generic[T], Sequence):  # noqa: UP046
+class AbstractArray[T](Sequence):
     """An indexable and sliceable collection for homogeneous objects.
 
     Supports NumPy-like advanced indexing and slicing operations:
