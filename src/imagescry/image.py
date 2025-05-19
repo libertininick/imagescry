@@ -9,7 +9,6 @@ from os import PathLike
 from pathlib import Path
 from typing import Literal, Self
 
-import pandas as pd
 import torch
 from jaxtyping import Float, Int64, Num, Shaped, UInt8, jaxtyped
 from more_itertools import chunked, split_when
@@ -23,6 +22,7 @@ from torch.utils.data import Dataset, Sampler
 from torchvision.transforms.functional import pil_to_tensor
 from tqdm import tqdm
 
+from imagescry.abstract_array import AbstractArray
 from imagescry.typechecking import typechecker
 
 ImageSource = str | PathLike | bytes | BytesIO
@@ -114,6 +114,12 @@ class ImageInfo:
         return cls(source=src, shape=read_image_shape(src), hash=get_image_hash(src))
 
 
+class ImageInfos(AbstractArray[ImageInfo]):
+    """Array of `ImageInfo` objects."""
+
+    ...
+
+
 class ImageFilesDataset(Dataset):
     """Dataset of UInt8 RGB images stored on disk.
 
@@ -128,9 +134,9 @@ class ImageFilesDataset(Dataset):
         Args:
             sources (Iterable[str | PathLike]): Iterable of image sources.
         """
-        self.image_infos = pd.Series([
+        self.image_infos = ImageInfos(
             ImageInfo.from_source(source=src) for src in tqdm(sources, desc="Indexing images")
-        ])
+        )
 
     @jaxtyped(typechecker=typechecker)
     def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
