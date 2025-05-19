@@ -12,7 +12,6 @@ from typing import Literal, Self
 import pandas as pd
 import torch
 from jaxtyping import Float, Int64, Num, Shaped, UInt8, jaxtyped
-from joblib import Parallel, delayed
 from more_itertools import chunked, split_when
 from PIL import Image
 from PIL.ImageFile import ImageFile
@@ -22,6 +21,7 @@ from torch import Tensor
 from torch.nn.functional import interpolate
 from torch.utils.data import Dataset, Sampler
 from torchvision.transforms.functional import pil_to_tensor
+from tqdm import tqdm
 
 from imagescry.typechecking import typechecker
 
@@ -122,33 +122,15 @@ class ImageFilesDataset(Dataset):
     - Not all images need to have the same spatial dimensions.
     """
 
-    # Minimum number of files to use parallel processing
-    PARALLEL_THRESHOLD = 500
-
-    def __init__(self, sources: Iterable[str | PathLike], *, num_jobs: int = -1) -> None:
+    def __init__(self, sources: Iterable[str | PathLike]) -> None:
         """Initialize the dataset.
 
         Args:
             sources (Iterable[str | PathLike]): Iterable of image sources.
-            num_jobs (int, optional): Number of parallel jobs. -1 means using all processors.
-                Only used if number of sources exceeds PARALLEL_THRESHOLD. Defaults to -1.
-
         """
-        # Convert sources to list to get length and allow multiple iterations
-        sources_list = list(sources)
-        num_sources = len(sources_list)
-
-        if num_sources >= self.PARALLEL_THRESHOLD:
-            # Process all image sources in parallel
-            image_infos = Parallel(n_jobs=num_jobs)(delayed(ImageInfo.from_source)(fp) for fp in sources_list)
-        else:
-            # Process sequentially for small number of files
-            image_infos = [ImageInfo.from_source(fp) for fp in sources_list]
-
-        # Unpack results
-        self.image_sources = pd.Series([info.source for info in image_infos])
-        self.image_shapes = pd.Series([info.shape for info in image_infos])
-        self.image_hashes = pd.Series([info.hash for info in image_infos])
+        self.image_infos = pd.Series([
+            ImageInfo.from_source(source=src) for src in tqdm(sources, desc="Indexing images")
+        ])
 
     @jaxtyped(typechecker=typechecker)
     def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
@@ -161,14 +143,14 @@ class ImageFilesDataset(Dataset):
             tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
         """
         # Read image and extract tensor
-        image_tensor = read_image_as_rgb_tensor(self.image_sources[idx])
+        image_tensor = read_image_as_rgb_tensor(self.image_infos[idx].source)
 
         # Return image index and tensor
         return torch.tensor(idx), image_tensor
 
     def __len__(self) -> int:
         """Return the number of images in the dataset."""
-        return len(self.image_sources)
+        return len(self.image_infos)
 
     @classmethod
     def from_directory(

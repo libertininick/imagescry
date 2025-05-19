@@ -144,7 +144,7 @@ def test_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, m
     dataloader = DataLoader(
         variable_size_image_dataset,
         batch_sampler=SimilarShapeBatcher(
-            image_shapes=variable_size_image_dataset.image_shapes, max_batch_size=max_batch_size
+            image_shapes=[info.shape for info in variable_size_image_dataset.image_infos], max_batch_size=max_batch_size
         ),
         shuffle=False,
         drop_last=False,
@@ -157,7 +157,7 @@ def test_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, m
 
         # Check all images in the batch have the same shape
         shapes = [ImageShape(*img.shape[-2:]) for img in images]
-        expected_shapes = variable_size_image_dataset.image_shapes[indexes.tolist()].tolist()
+        expected_shapes = [info.shape for info in variable_size_image_dataset.image_infos[indexes.tolist()]]
         num_unique_shapes = len(set(expected_shapes))
         check.equal(expected_shapes, shapes)
         check.equal(num_unique_shapes, 1)
