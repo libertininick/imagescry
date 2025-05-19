@@ -157,10 +157,15 @@ def test_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, m
 
         # Check all images in the batch have the same shape
         shapes = [ImageShape(*img.shape[-2:]) for img in images]
-        expected_shapes = [info.shape for info in variable_size_image_dataset.image_infos[indexes.tolist()]]
-        num_unique_shapes = len(set(expected_shapes))
-        check.equal(expected_shapes, shapes)
+        num_unique_shapes = len(set(shapes))
         check.equal(num_unique_shapes, 1)
+
+        # Get expected shape for each image in the batch
+        index_list: list[int] = indexes.tolist()
+        expected_shapes = [info.shape for info in variable_size_image_dataset.image_infos[index_list]]
+
+        # Check the expected shapes match the observed shapes
+        check.equal(expected_shapes, shapes)
 
         # Add image indexes to the observed set
         observed_image_indexes.update(indexes.tolist())
