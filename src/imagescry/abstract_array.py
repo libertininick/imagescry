@@ -56,7 +56,7 @@ Examples:
 
 import itertools
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from typing import Protocol, TypeGuard, TypeVar, get_args, get_origin, overload
+from typing import Any, Protocol, TypeGuard, TypeVar, get_args, get_origin, overload
 
 from more_itertools import chunked, first
 
@@ -96,7 +96,7 @@ class AbstractArray[T](Sequence):
 
     def __init__(self, items: Iterable[T]) -> None:
         """Initialize the collection with an iterable of items."""
-        self._items: list[T] = list(items)
+        self._items: list[T] = [self._validate_item(item) for item in items]
 
     def __len__(self) -> int:
         """Return the number of items in the collection."""
@@ -138,9 +138,7 @@ class AbstractArray[T](Sequence):
 
     def append(self, item: T) -> None:
         """Add an item to the end of the collection."""
-        if not isinstance(item, self._get_item_type()):
-            raise TypeError(f"Item must be of type {self._get_item_type()}, got {type(item)}")
-        self._items.append(item)
+        self._items.append(self._validate_item(item))
 
     def batch(self, batch_size: int) -> list["AbstractArray[T]"]:
         """Split the collection into batches of specified size."""
@@ -148,10 +146,7 @@ class AbstractArray[T](Sequence):
 
     def extend(self, items: Iterable[T]) -> None:
         """Add multiple items to the end of the collection."""
-        item_type = self._get_item_type()
-        if not all(isinstance(item, item_type) for item in items):
-            raise TypeError(f"All items must be of type {item_type}")
-        self._items.extend(items)
+        self._items.extend(self._validate_item(item) for item in items)
 
     def filter(self, predicate: Callable[[T], bool]) -> "AbstractArray[T]":
         """Return a new collection with items that satisfy the predicate."""
@@ -181,6 +176,12 @@ class AbstractArray[T](Sequence):
 
         else:
             raise TypeError(f"Invalid index sequence type: {type(key)}")  # pragma: no cover
+
+    def _validate_item(self, item: Any) -> T:
+        """Validate an item is an instance of the item type of the AbstractArray."""
+        if not isinstance(item, self._get_item_type()):
+            raise TypeError(f"Item must be of type {self._get_item_type()}, got {type(item)}")
+        return item
 
     @classmethod
     def _get_item_type(cls) -> type[T]:
