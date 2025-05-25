@@ -56,9 +56,9 @@ Examples:
 
 import itertools
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from typing import Protocol, TypeGuard, TypeVar, overload
+from typing import Protocol, TypeGuard, TypeVar, get_args, get_origin, overload
 
-from more_itertools import chunked
+from more_itertools import chunked, first
 
 T = TypeVar("T")
 T_contra = TypeVar("T_contra", contravariant=True)
@@ -138,6 +138,8 @@ class AbstractArray[T](Sequence):
 
     def append(self, item: T) -> None:
         """Add an item to the end of the collection."""
+        if not isinstance(item, self._get_item_type()):
+            raise TypeError(f"Item must be of type {self._get_item_type()}, got {type(item)}")
         self._items.append(item)
 
     def batch(self, batch_size: int) -> list["AbstractArray[T]"]:
@@ -146,6 +148,9 @@ class AbstractArray[T](Sequence):
 
     def extend(self, items: Iterable[T]) -> None:
         """Add multiple items to the end of the collection."""
+        item_type = self._get_item_type()
+        if not all(isinstance(item, item_type) for item in items):
+            raise TypeError(f"All items must be of type {item_type}")
         self._items.extend(items)
 
     def filter(self, predicate: Callable[[T], bool]) -> "AbstractArray[T]":
@@ -162,6 +167,10 @@ class AbstractArray[T](Sequence):
 
     def _get_item_sequence(self, key: Sequence[int] | Sequence[bool]) -> "AbstractArray[T]":
         """Get a sequence of items from the collection using a boolean mask or integer index."""
+        if not key:
+            # Return an empty array if the key is empty
+            return self.__class__([])
+
         if _is_boolean_mask(key):
             if len(key) != len(self):
                 raise IndexError("Boolean index array should have same length as collection")
@@ -172,6 +181,14 @@ class AbstractArray[T](Sequence):
 
         else:
             raise TypeError(f"Invalid index sequence type: {type(key)}")  # pragma: no cover
+
+    @classmethod
+    def _get_item_type(cls) -> type[T]:
+        """Get the item type the AbstractArray was parameterized with."""
+        for base in getattr(cls, "__orig_bases__", []):
+            if get_origin(base) is not None and (param_args := get_args(base)):
+                return first(param_args)
+        raise TypeError("AbstractArray must be parameterized")
 
 
 def _is_boolean_mask(key: Sequence[int | bool]) -> TypeGuard[Sequence[bool]]:
