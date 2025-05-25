@@ -30,12 +30,6 @@ def empty_points() -> Points:
 
 
 @pytest.fixture
-def single_point() -> Points:
-    """Create a Points array with a single point."""
-    return Points([Point(1, 2)])
-
-
-@pytest.fixture
 def multiple_points() -> Points:
     """Create a Points array with multiple points."""
     return Points([Point(1, 2), Point(3, 4), Point(5, 6), Point(7, 8), Point(9, 10)])
@@ -167,7 +161,7 @@ def test_fancy_indexing(multiple_points: Points) -> None:
 
     # Test float indices raises TypeError
     with pytest.raises(TypeError):
-        _ = multiple_points[[0.0, 2.0, 4.0]]
+        _ = multiple_points[[0.0, 2.0, 4.0]]  # type: ignore[list-item]
 
 
 def test_append(empty_points: Points) -> None:
@@ -177,9 +171,9 @@ def test_append(empty_points: Points) -> None:
     check.equal(len(empty_points), 1)
     check.equal(empty_points[0], Point(1, 2))
 
-    # Test invalid item type raises TypeError
+    # Test invalid item type (tuple instead of Point) raises TypeError
     with pytest.raises(TypeError):
-        empty_points.append((1, 2))  # Should fail with tuple instead of Point
+        empty_points.append((1, 2))  # type: ignore[arg-type]
 
 
 def test_extend(empty_points: Points) -> None:
@@ -196,7 +190,7 @@ def test_extend(empty_points: Points) -> None:
 
     # Test invalid item type raises TypeError
     with pytest.raises(TypeError):
-        empty_points.extend([(1, 2), (3, 4)])
+        empty_points.extend([(1, 2), (3, 4)])  # type: ignore[list-item]
 
 
 def test_batch(multiple_points: Points) -> None:
