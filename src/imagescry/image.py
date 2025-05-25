@@ -123,9 +123,38 @@ class ImageInfos(AbstractArray[ImageInfo]):
 class ImageFilesDataset(Dataset):
     """Dataset of UInt8 RGB images stored on disk.
 
-    - Each image is read as a uint8 tensor with shape `(3, H, W)`
+    - When an image is accessed, it is read as a uint8 tensor with shape `(3, H, W)`
     - The image's index in the dataset is returned as a tuple with the image tensor: `(index, image_tensor)`
     - Not all images need to have the same spatial dimensions.
+
+    Examples:
+        Create a dataset from a directory of images:
+        >>> dataset = ImageFilesDataset.from_directory("path/to/images") # doctest: +SKIP
+
+        Get the first image in the dataset:
+        >>> dataset[0] # doctest: +SKIP
+        (tensor(0),
+         tensor([[[ 36,  44,  58,  ...,  35,  42,  50],
+                  [ 46,  38,  38,  ...,  40,  46,  49],
+                  [ 66,  52,  46,  ...,  51,  52,  49],
+                  ...,
+                  [ 42,  49,  56,  ..., 171, 172, 173],
+                  [ 35,  33,  42,  ..., 169, 169, 171],
+                  [ 26,  26,  47,  ..., 167, 166, 167]],
+                 [[ 40,  48,  62,  ...,  40,  47,  55],
+                  [ 50,  42,  42,  ...,  45,  51,  54],
+                  [ 70,  56,  47,  ...,  56,  57,  54],
+                  ...,
+                  [ 42,  49,  56,  ..., 189, 190, 191],
+                  [ 35,  33,  44,  ..., 187, 187, 189],
+                  [ 26,  26,  49,  ..., 185, 184, 185]],
+                 [[ 43,  51,  65,  ...,  36,  43,  51],
+                  [ 53,  45,  45,  ...,  41,  47,  50],
+                  [ 73,  59,  51,  ...,  52,  53,  50],
+                  ...,
+                  [ 42,  49,  56,  ..., 199, 200, 201],
+                  [ 35,  33,  43,  ..., 197, 197, 199],
+                  [ 26,  26,  48,  ..., 195, 194, 195]]], dtype=torch.uint8))
     """
 
     def __init__(self, sources: Sequence[str | PathLike]) -> None:
