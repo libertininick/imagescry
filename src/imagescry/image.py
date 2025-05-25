@@ -1,6 +1,6 @@
 """Image tools."""
 
-from collections.abc import Generator, Iterable
+from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
 from hashlib import md5
 from io import BytesIO
@@ -20,7 +20,7 @@ from torch import Tensor
 from torch.nn.functional import interpolate
 from torch.utils.data import Dataset, Sampler
 from torchvision.transforms.functional import pil_to_tensor
-from tqdm import tqdm
+from tqdm.contrib.concurrent import thread_map
 
 from imagescry.abstract_array import AbstractArray
 from imagescry.typechecking import typechecker
@@ -128,14 +128,20 @@ class ImageFilesDataset(Dataset):
     - Not all images need to have the same spatial dimensions.
     """
 
-    def __init__(self, sources: Iterable[str | PathLike]) -> None:
-        """Initialize the dataset.
+    def __init__(self, sources: Sequence[str | PathLike]) -> None:
+        """Initialize the dataset by indexing image sources.
 
         Args:
-            sources (Iterable[str | PathLike]): Iterable of image sources.
+            sources (Sequence[str | PathLike]): Sequence of image sources to create the dataset from.
         """
         self.image_infos = ImageInfos(
-            ImageInfo.from_source(source=src) for src in tqdm(sources, desc="Indexing images")
+            thread_map(
+                ImageInfo.from_source,
+                sources,
+                desc="Indexing images",
+                unit="img",
+                total=len(sources),
+            )
         )
 
     @jaxtyped(typechecker=typechecker)
@@ -160,24 +166,33 @@ class ImageFilesDataset(Dataset):
 
     @classmethod
     def from_directory(
-        cls, directory: str | PathLike, *, pattern: str = "**/*[.jpg,.jpeg,.png]*", case_sensitive: bool = False
+        cls,
+        directory: str | PathLike,
+        *,
+        image_extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png"),
     ) -> Self:
         """Create a dataset from a directory of images.
 
         Args:
             directory (str | PathLike): The directory to create the dataset from.
-            pattern (str, optional): The glob pattern to use to find images. Defaults to "**/*[.jpg,.jpeg,.png]*".
-            case_sensitive (bool, optional): Whether the pattern should be case sensitive. Defaults to False.
+            image_extensions (tuple[str, ...], optional): The image file extensions (case insensitive) to use to find
+                image files within the directory. Defaults to `(".jpg", ".jpeg", ".png")`.
 
         Returns:
             Self: An instance of `ImageFilesDataset`.
 
         Raises:
-            FileNotFoundError: If the directory does not exist.
+            FileNotFoundError: If the directory does not exist or if no images are found in the directory.
         """
         if (directory := Path(directory)).is_dir():
-            # Create dataset from glob pattern
-            return cls(directory.glob(pattern, case_sensitive=case_sensitive))
+            # Find image sources
+            extension_set = {ext.lower() for ext in image_extensions}
+            sources = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in extension_set]
+            if not sources:
+                raise FileNotFoundError(f"No images found in directory {directory}")  # pragma: no cover
+
+            # Create dataset
+            return cls(sources)
         else:
             raise FileNotFoundError(f"Directory {directory} does not exist")  # pragma: no cover
 
