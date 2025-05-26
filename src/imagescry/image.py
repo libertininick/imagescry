@@ -245,12 +245,12 @@ class ImageFilesDataset(Dataset):
             extension_set = {ext.lower() for ext in image_extensions}
             sources = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in extension_set]
             if not sources:
-                raise FileNotFoundError(f"No images found in directory {directory}")  # pragma: no cover
+                raise FileNotFoundError(f"No images found in directory {directory}")
 
             # Create dataset
             return cls(sources)
         else:
-            raise FileNotFoundError(f"Directory {directory} does not exist")  # pragma: no cover
+            raise FileNotFoundError(f"Directory {directory} does not exist")
 
 
 class SimilarShapeBatcher(Sampler):
