@@ -17,7 +17,8 @@ from torchvision.models import (
     efficientnet_v2_s,
 )
 
-from imagescry.image import ImageBatch, normalize_per_channel
+from imagescry.image.dataset import ImageBatch
+from imagescry.image.transforms import normalize_per_channel
 from imagescry.typechecking import typechecker
 
 

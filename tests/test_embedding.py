@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from imagescry.embedding import EfficientNetEmbedder
-from imagescry.image import ImageBatch
+from imagescry.image.dataset import ImageBatch
 
 
 @pytest.fixture(scope="session")
