@@ -124,7 +124,7 @@ class ImageInfos(AbstractArray[ImageInfo]):
 @jaxtyped(typechecker=typechecker)
 @dataclass(frozen=True, slots=True)
 class ImageBatch:
-    """Batch of images and their dataset indices.
+    """Batch of RGBimages and their dataset indices.
 
     Attributes:
         indices (Int64[Tensor, "B"]): Dataset indices of the images.
