@@ -2,6 +2,7 @@
 
 from collections.abc import Generator, Iterable, Sequence
 from contextlib import contextmanager
+from dataclasses import dataclass
 from hashlib import md5
 from io import BytesIO
 from itertools import chain
@@ -15,10 +16,10 @@ from more_itertools import chunked, split_when
 from PIL import Image
 from PIL.ImageFile import ImageFile
 from pydantic import Field
-from pydantic.dataclasses import dataclass
+from pydantic.dataclasses import dataclass as pydantic_dataclass
 from torch import Tensor
 from torch.nn.functional import interpolate
-from torch.utils.data import Dataset, Sampler, Subset
+from torch.utils.data import DataLoader, Dataset, Sampler, Subset
 from torchvision.transforms.functional import pil_to_tensor
 from tqdm.contrib.concurrent import thread_map
 
@@ -28,7 +29,7 @@ from imagescry.typechecking import typechecker
 ImageSource = str | PathLike | bytes | BytesIO
 
 
-@dataclass(frozen=True)
+@pydantic_dataclass(frozen=True)
 class ImageShape:
     """Image shape.
 
@@ -81,7 +82,7 @@ class ImageShape:
         return self.height, self.width
 
 
-@dataclass(frozen=True)
+@pydantic_dataclass(frozen=True)
 class ImageInfo:
     """Information about an image source.
 
@@ -118,6 +119,24 @@ class ImageInfos(AbstractArray[ImageInfo]):
     """Array of `ImageInfo` objects."""
 
     ...
+
+
+@jaxtyped(typechecker=typechecker)
+@dataclass(frozen=True, slots=True)
+class ImageBatch:
+    """Batch of images and their dataset indices.
+
+    Attributes:
+        indices (Int64[Tensor, "B"]): Dataset indices of the images.
+        images (UInt8[Tensor, "B 3 H W"]): Batch of images.
+    """
+
+    indices: Int64[Tensor, "B"]
+    images: UInt8[Tensor, "B 3 H W"]
+
+    def __len__(self) -> int:
+        """Return the number of images in the batch."""
+        return len(self.indices)
 
 
 class ImageFilesDataset(Dataset):
@@ -192,6 +211,40 @@ class ImageFilesDataset(Dataset):
     def __len__(self) -> int:
         """Return the number of images in the dataset."""
         return len(self.image_infos)
+
+    def get_loader(
+        self,
+        max_batch_size: int,
+        *,
+        sample_size: int | float | None = None,
+        seed: int | None = None,
+    ) -> DataLoader:
+        """Get a `DataLoader` for the dataset using a `SimilarShapeBatcher` to batch images by shape.
+
+        Loader will return `ImageBatch` objects.
+
+        Args:
+            max_batch_size (int): The maximum batch size for the `DataLoader`.
+            sample_size (int | float | None, optional): The size of the subset to sample. If a float, it is interpreted
+                as a fraction of the dataset. Defaults to None, which means no sampling.
+            seed (int | None, optional): The seed to use for the random number generator. Defaults to None.
+
+        Returns:
+            DataLoader: A `DataLoader` for the dataset.
+        """
+        # Sample subset if requested
+        if sample_size is not None:
+            subset = self.sample(sample_size, seed=seed)
+            shapes = [info.shape for info in self.image_infos[subset.indices]]
+        else:
+            subset = None
+            shapes = [info.shape for info in self.image_infos]
+
+        return DataLoader(
+            subset or self,
+            batch_sampler=SimilarShapeBatcher(shapes, max_batch_size),
+            collate_fn=_collate_image_batch,
+        )
 
     def sample(self, size: int | float, *, seed: int | None = None) -> Subset:
         """Sample a random subset of the dataset.
@@ -516,6 +569,12 @@ def _calc_scale_factor(
         raise ValueError(f"Invalid side_ref: {side_ref}")  # pragma: no cover
 
     return scale_factor
+
+
+def _collate_image_batch(batch: list[tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]]) -> ImageBatch:
+    """Collate a list of image tensors and their dataset indices into an `ImageBatch`."""
+    indices, images = zip(*batch, strict=True)
+    return ImageBatch(indices=torch.stack(indices), images=torch.stack(images))
 
 
 @jaxtyped(typechecker=typechecker)
