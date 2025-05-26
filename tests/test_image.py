@@ -10,7 +10,7 @@ from jaxtyping import UInt8, jaxtyped
 from pytest import FixtureRequest, TempPathFactory
 from pytest_check import check
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from torchvision.io import write_png
 
 from imagescry.image import (
@@ -273,3 +273,73 @@ def test_resize_side_ref(
             resized_height,
             pytest.approx(original_height * output_size / original_width, abs=1),
         )
+
+
+def test_image_files_dataset_sample_integer_size(variable_size_image_dataset: ImageFilesDataset) -> None:
+    """Test sampling from an `ImageFilesDataset` with integer size."""
+    # Test sampling 5 items
+    subset = variable_size_image_dataset.sample(5)
+
+    # Check it's a Subset instance
+    check.is_instance(subset, Subset)
+
+    # Check the size is correct
+    check.equal(len(subset), 5)
+
+    # Check all indices are valid
+    check.is_true(all(0 <= idx < len(variable_size_image_dataset) for idx in subset.indices))
+
+
+def test_image_files_dataset_sample_float_size(variable_size_image_dataset: ImageFilesDataset) -> None:
+    """Test sampling from an `ImageFilesDataset` with with float size (percentage)."""
+    # Test sampling 50% of items
+    subset = variable_size_image_dataset.sample(0.5)
+
+    # Check it's a Subset instance
+    check.is_instance(subset, Subset)
+
+    # Check the size is correct (should be half rounded down)
+    expected_size = len(variable_size_image_dataset) // 2
+    check.equal(len(subset), expected_size)
+
+    # Test edge cases
+    empty_subset = variable_size_image_dataset.sample(0.0)
+    check.equal(len(empty_subset), 0)
+
+    full_subset = variable_size_image_dataset.sample(1.0)
+    check.equal(len(full_subset), len(variable_size_image_dataset))
+
+
+def test_image_files_dataset_invalid_sample_size_raises(variable_size_image_dataset: ImageFilesDataset) -> None:
+    """Test error conditions for sampling from an `ImageFilesDataset` with invalid sizes."""
+    # Test negative integer size
+    with pytest.raises(ValueError, match="size must be between 0 and the number of images in the dataset"):
+        variable_size_image_dataset.sample(-1)
+
+    # Test size larger than dataset
+    with pytest.raises(ValueError, match="size must be between 0 and the number of images in the dataset"):
+        variable_size_image_dataset.sample(len(variable_size_image_dataset) + 1)
+
+    # Test negative float size
+    with pytest.raises(ValueError, match="size must be between 0 and 1"):
+        variable_size_image_dataset.sample(-0.5)
+
+    # Test float size > 1.0
+    with pytest.raises(ValueError, match="size must be between 0 and 1"):
+        variable_size_image_dataset.sample(1.5)
+
+
+def test_sample_seed_reproducibility(variable_size_image_dataset: ImageFilesDataset) -> None:
+    """Test that sampling is reproducible with the same seed."""
+    # Sample with same seed
+    subset1 = variable_size_image_dataset.sample(5, seed=42)
+    subset2 = variable_size_image_dataset.sample(5, seed=42)
+
+    # Check indices are identical
+    check.equal(subset1.indices, subset2.indices)
+
+    # Sample with different seed
+    subset3 = variable_size_image_dataset.sample(5, seed=43)
+
+    # Check indices are different
+    check.not_equal(subset1.indices, subset3.indices)

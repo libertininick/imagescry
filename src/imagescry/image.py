@@ -18,7 +18,7 @@ from pydantic import Field
 from pydantic.dataclasses import dataclass
 from torch import Tensor
 from torch.nn.functional import interpolate
-from torch.utils.data import Dataset, Sampler
+from torch.utils.data import Dataset, Sampler, Subset
 from torchvision.transforms.functional import pil_to_tensor
 from tqdm.contrib.concurrent import thread_map
 
@@ -192,6 +192,33 @@ class ImageFilesDataset(Dataset):
     def __len__(self) -> int:
         """Return the number of images in the dataset."""
         return len(self.image_infos)
+
+    def sample(self, size: int | float, *, seed: int | None = None) -> Subset:
+        """Sample a random subset of the dataset.
+
+        Args:
+            size (int | float): The size of the subset. If a float, it is interpreted as a fraction of the dataset.
+            seed (int | None, optional): The seed to use for the random number generator. Defaults to None.
+
+        Returns:
+            Subset: A subset of the dataset.
+
+        Raises:
+            ValueError: If `size` is not between 0 and 1 or the number of images in the dataset.
+        """
+        if seed is not None:
+            torch.manual_seed(seed)
+
+        if isinstance(size, float):
+            if size < 0 or size > 1:
+                raise ValueError("size must be between 0 and 1")
+            num_samples = int(size * len(self))
+        else:
+            if size < 0 or size > len(self):
+                raise ValueError("size must be between 0 and the number of images in the dataset")
+            num_samples = size
+
+        return Subset(self, torch.randperm(len(self))[:num_samples].tolist())
 
     @classmethod
     def from_directory(
