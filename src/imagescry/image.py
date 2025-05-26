@@ -138,6 +138,33 @@ class ImageBatch:
         """Return the number of images in the batch."""
         return len(self.indices)
 
+    def __post_init__(self) -> None:
+        """Check that both tensors are on the same device."""
+        if self.indices.device != self.images.device:
+            raise ValueError(
+                "Tensors must be on the same device. "
+                f"Got indices on {self.indices.device} and images on {self.images.device}"
+            )
+
+    def to(self, device: torch.device) -> "ImageBatch":
+        """Move tensors to the specified device.
+
+        Args:
+            device (torch.device): The device to move the tensors to.
+
+        Returns:
+            ImageBatch: A new ImageBatch with tensors on the specified device.
+        """
+        return ImageBatch(
+            indices=self.indices.to(device),
+            images=self.images.to(device),
+        )
+
+    @property
+    def device(self) -> torch.device:
+        """Get the device that the tensors are on."""
+        return self.indices.device
+
 
 class ImageFilesDataset(Dataset):
     """Dataset of UInt8 RGB images stored on disk.
