@@ -1,9 +1,11 @@
 """Embedding model for featurizing images."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Literal
 
-from jaxtyping import Float, Num, jaxtyped
+import torch
+from jaxtyping import Float, Int64, Num, jaxtyped
 from lightning import LightningModule
 from torch import Tensor, nn
 from torchvision.models import (
@@ -15,8 +17,53 @@ from torchvision.models import (
     efficientnet_v2_s,
 )
 
-from imagescry.image import normalize_per_channel
+from imagescry.image import ImageBatch, normalize_per_channel
 from imagescry.typechecking import typechecker
+
+
+@jaxtyped(typechecker=typechecker)
+@dataclass(frozen=True, slots=True)
+class EmbeddingBatch:
+    """Batch of image embeddings and their dataset indices.
+
+    Attributes:
+        indices (Int64[Tensor, "B"]): Dataset indices of the embeddings.
+        embeddings (Float[Tensor, "B E H W"]): Batch of image embeddings, with embedding dimension `E`.
+    """
+
+    indices: Int64[Tensor, "B"]
+    embeddings: Float[Tensor, "B E H W"]
+
+    def __len__(self) -> int:
+        """Return the number of embeddings in the batch."""
+        return len(self.indices)
+
+    def __post_init__(self) -> None:
+        """Check that both tensors are on the same device."""
+        if self.indices.device != self.embeddings.device:
+            raise ValueError(
+                "Tensors must be on the same device. "
+                f"Got indices on {self.indices.device} and embeddings on {self.embeddings.device}"
+            )
+
+    def to(self, device: torch.device) -> "EmbeddingBatch":
+        """Move tensors to the specified device.
+
+        Args:
+            device (torch.device): The device to move the tensors to.
+
+        Returns:
+            EmbeddingBatch: A new EmbeddingBatch with tensors on the specified device.
+        """
+        return EmbeddingBatch(
+            indices=self.indices.to(device),
+            embeddings=self.embeddings.to(device),
+        )
+
+    @property
+    def device(self) -> torch.device:
+        """Get the device that the tensors are on."""
+        return self.indices.device
 
 
 class AbstractEmbeddingModel(ABC, LightningModule):
@@ -36,22 +83,22 @@ class AbstractEmbeddingModel(ABC, LightningModule):
         ...  # pragma: no cover
 
     @jaxtyped(typechecker=typechecker)
-    def predict_step(self, batch: Num[Tensor, "B C H1 W1"]) -> Float[Tensor, "B E H2 W2"]:
+    def predict_step(self, batch: ImageBatch) -> EmbeddingBatch:
         """Extract embedding feature maps and L2 normalizes each embedding vector for a batch of images.
 
         Args:
-            batch (Num[Tensor, 'B C H1 W1']): Batch of images.
+            batch (ImageBatch): Batch of images and their dataset indices.
 
         Returns:
-            Float[Tensor, 'B E H2 W2']: L2 normalized embedding feature map for the batch of images.
+            EmbeddingBatch: Embedding feature map for the batch of images.
         """
         # Extract embedding feature map
-        x = self.forward(batch)
+        x = self.forward(batch.images)
 
         # L2 normalize embedding
         x = nn.functional.normalize(x, p=2, dim=1)
 
-        return x
+        return EmbeddingBatch(indices=batch.indices, embeddings=x)
 
     @property
     @abstractmethod
