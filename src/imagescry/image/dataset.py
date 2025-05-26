@@ -47,19 +47,24 @@ class ImageBatch:
                 f"Got indices on {self.indices.device} and images on {self.images.device}"
             )
 
-    def to(self, device: torch.device) -> "ImageBatch":
+    def cpu(self) -> "ImageBatch":
+        """Move tensors to the CPU.
+
+        Returns:
+            ImageBatch: A new ImageBatch with tensors on the CPU.
+        """
+        return self.to("cpu")
+
+    def to(self, device: str | torch.device) -> "ImageBatch":
         """Move tensors to the specified device.
 
         Args:
-            device (torch.device): The device to move the tensors to.
+            device (str | torch.device): The device to move the tensors to.
 
         Returns:
             ImageBatch: A new ImageBatch with tensors on the specified device.
         """
-        return ImageBatch(
-            indices=self.indices.to(device),
-            images=self.images.to(device),
-        )
+        return ImageBatch(indices=self.indices.to(device), images=self.images.to(device))
 
     @property
     def device(self) -> torch.device:

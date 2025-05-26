@@ -9,8 +9,30 @@ from pytest_check import check
 from torch.utils.data import DataLoader, Subset
 from torchvision.io import write_png
 
-from imagescry.image.dataset import ImageFilesDataset, SimilarShapeBatcher
+from imagescry.image.dataset import ImageBatch, ImageFilesDataset, SimilarShapeBatcher
 from imagescry.image.info import ImageShape
+
+
+def test_image_batch_device() -> None:
+    """Test getting the device of an `ImageBatch` and moving tensors to a device."""
+    # Create a batch of images
+    image_batch = ImageBatch(
+        indices=torch.tensor([0, 1, 2]), images=torch.randint(0, 255, (3, 3, 3, 3)).to(torch.uint8)
+    )
+
+    # Check the device
+    check.equal(image_batch.device, torch.device("cpu"))
+
+    # Move to GPU
+    if torch.cuda.is_available():
+        image_batch = image_batch.to("cuda")
+        check.is_true(str(image_batch.device).startswith("cuda"))
+        check.is_true(image_batch.images.is_cuda)
+        check.is_true(image_batch.indices.is_cuda)
+
+    # Move to CPU
+    image_batch = image_batch.cpu()
+    check.equal(image_batch.device, torch.device("cpu"))
 
 
 def test_sample_integer_size(variable_size_image_dataset: ImageFilesDataset) -> None:
