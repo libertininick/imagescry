@@ -55,6 +55,14 @@ class EmbeddingBatch:
         """
         return self.to("cpu")
 
+    def get_flat_vectors(self) -> Float[Tensor, "N E"]:
+        """Flatten batch and spatial dimensions of embeddings.
+
+        Returns:
+            Float[Tensor, "N E"]: Flattened spatial embeddings.
+        """
+        return self.embeddings.permute(0, 2, 3, 1).reshape(-1, self.embedding_dim)
+
     def to(self, device: str | torch.device) -> "EmbeddingBatch":
         """Move tensors to the specified device.
 
@@ -70,6 +78,16 @@ class EmbeddingBatch:
     def device(self) -> torch.device:
         """Get the device that the tensors are on."""
         return self.indices.device
+
+    @property
+    def embedding_dim(self) -> int:
+        """int: Embedding dimension."""
+        return self.embeddings.size(1)
+
+    @property
+    def spatial_dims(self) -> tuple[int, int]:
+        """tuple[int, int]: Spatial dimensions of the embeddings."""
+        return self.embeddings.size(2), self.embeddings.size(3)
 
 
 class AbstractEmbeddingModel(ABC, LightningModule):
