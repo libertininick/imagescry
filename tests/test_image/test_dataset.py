@@ -6,10 +6,10 @@ import pytest
 import torch
 from pytest import TempPathFactory
 from pytest_check import check
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import Subset
 from torchvision.io import write_png
 
-from imagescry.image.dataset import ImageBatch, ImageFilesDataset, SimilarShapeBatcher
+from imagescry.image.dataset import ImageBatch, ImageFilesDataset
 from imagescry.image.info import ImageShape
 
 
@@ -106,38 +106,31 @@ def test_sample_seed_reproducibility(variable_size_image_dataset: ImageFilesData
 
 
 @pytest.mark.parametrize("max_batch_size", [1, 2, 3, 4])
-def test_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, max_batch_size: int) -> None:
-    """Test the similar shape batcher groups images into batches by imagesize."""
-    # Create a dataloader with the similar shape batcher
-    dataloader = DataLoader(
-        variable_size_image_dataset,
-        batch_sampler=SimilarShapeBatcher(
-            image_shapes=[info.shape for info in variable_size_image_dataset.image_infos],
-            max_batch_size=max_batch_size,
-        ),
-        shuffle=False,
-        drop_last=False,
-    )
+def test_dataloader_similar_shape_batcher(variable_size_image_dataset: ImageFilesDataset, max_batch_size: int) -> None:
+    """Test dataset's dataloader uses the similar shape batcher to group images into batches by imagesize."""
+    # Create a dataloader that uses the similar shape batcher to group images into batches by imagesize
+    dataloader = variable_size_image_dataset.get_loader(max_batch_size=max_batch_size)
 
+    # Iterate through the batches and check that the images are grouped into batches by imagesize
     observed_image_indexes = set()
-    for indexes, images in dataloader:
+    for batch in dataloader:
         # Check the batch size is less than or equal to max_batch_size
-        check.less_equal(images.size(0), max_batch_size)
+        check.less_equal(len(batch), max_batch_size)
 
         # Check all images in the batch have the same shape
-        shapes = [ImageShape(*img.shape[-2:]) for img in images]
+        shapes = [ImageShape(*img.shape[-2:]) for img in batch.images]
         num_unique_shapes = len(set(shapes))
         check.equal(num_unique_shapes, 1)
 
         # Get expected shape for each image in the batch
-        index_list: list[int] = indexes.tolist()
+        index_list: list[int] = batch.indices.tolist()
         expected_shapes = [info.shape for info in variable_size_image_dataset.image_infos[index_list]]
 
         # Check the expected shapes match the observed shapes
         check.equal(expected_shapes, shapes)
 
         # Add image indexes to the observed set
-        observed_image_indexes.update(indexes.tolist())
+        observed_image_indexes.update(index_list)
 
     # Check that all image indexes were observed while iterating through the dataloader using the batch sampler
     expected_image_indexes = set(range(len(variable_size_image_dataset)))
