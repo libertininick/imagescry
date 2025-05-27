@@ -45,6 +45,9 @@ def test_resize_exact_output_size(
     resized_image = resize(image_tensor, output_size=output_size, side_ref="height")
     check.equal(resized_image.shape[-2:], output_size)
 
+    # Check that image tensor dtype is float
+    check.is_true(resized_image.dtype.is_floating_point)
+
 
 @pytest.mark.parametrize("transpose_input", [False, True])
 @pytest.mark.parametrize("side_ref", ["height", "width", "long", "short"])

@@ -80,8 +80,11 @@ def resize(
     output_size: int | tuple[int, int],
     *,
     side_ref: Literal["height", "width", "long", "short"] = "long",
-) -> Num[Tensor, "... H2 W2"]:
+) -> Float[Tensor, "... H2 W2"]:
     """Resize image tensor.
+
+    NOTE: Image tensor is converted to float before resizing because PyTorch's F.interpolate function has limited
+    support for uint8 tensors, especially when using CUDA.
 
     Args:
         image_tensor (Num[Tensor, '... H1 W1']): Image tensor to resize.
@@ -90,11 +93,14 @@ def resize(
             is an integer. Defaults to 'long'.
 
     Returns:
-        Num[Tensor, '... H2 W2']: Resized image tensor.
+        Float[Tensor, '... H2 W2']: Resized image tensor.
     """
     # Make sure tensor is 4D
     squeeze_dims = tuple(range(4 - image_tensor.ndim))
     image_tensor = to_4d(image_tensor)
+
+    # Convert image tensor to float
+    image_tensor = image_tensor.float()
 
     # Resize image
     if isinstance(output_size, int):
