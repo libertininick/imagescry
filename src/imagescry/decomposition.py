@@ -109,7 +109,7 @@ class PCA(LightningModule):
         x_centered = x - self.feature_means
 
         # Perform singular value decomposition of centered matrix
-        _, s, v = torch.pca_lowrank(x_centered, center=False)
+        _, s, vt = torch.linalg.svd(x_centered)
 
         # Calculate explained variance ratio
         eigenvalues = s**2 / (num_samples - 1)
@@ -127,7 +127,7 @@ class PCA(LightningModule):
         self._num_components = nn.Parameter(torch.tensor(num_components), requires_grad=False)
 
         # Select components
-        self.component_vectors = nn.Parameter(v[:, :num_components], requires_grad=False)
+        self.component_vectors = nn.Parameter(vt[:num_components, :].T, requires_grad=False)
 
         # Set fitted flag
         self._fitted = nn.Parameter(torch.tensor(True), requires_grad=False)
