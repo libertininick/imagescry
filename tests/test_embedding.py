@@ -35,8 +35,9 @@ def test_embedding_predict_step(
     embedding_batch = efficientnet_embedder.predict_step(image_batch)
 
     # Check embedding shape
-    expected_height = math.ceil(height / efficientnet_embedder.downsample_factor)
-    expected_width = math.ceil(width / efficientnet_embedder.downsample_factor)
+    downsample_factor = 32
+    expected_height = math.ceil(height / downsample_factor)
+    expected_width = math.ceil(width / downsample_factor)
     assert embedding_batch.embeddings.shape == (
         batch_size,
         efficientnet_embedder.embedding_dim,
