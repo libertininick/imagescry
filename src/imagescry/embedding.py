@@ -184,7 +184,6 @@ class EfficientNetEmbedder(AbstractEmbeddingModel):
         # Resize images so that the long side is at most `max_side_length`
         h, w = images.shape[-2:]
         if max(h, w) > self.max_side_length:
-            print(images.dtype)
             images = resize(images, output_size=self.max_side_length, side_ref="long")
 
         # Normalize pixel values to [-3, 3]
