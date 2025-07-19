@@ -44,7 +44,7 @@ def variable_size_image_dataset(tmp_path_factory: TempPathFactory) -> ImageFiles
     ]
     for i, shape in enumerate(shapes):
         image_tensor = torch.randint(0, 255, (3, *shape), dtype=torch.uint8)
-        write_png(image_tensor, image_dir / f"{i}.png")
+        write_png(image_tensor, str(image_dir / f"{i}.png"))
 
     return ImageFilesDataset.from_directory(image_dir)
 
