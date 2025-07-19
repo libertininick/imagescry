@@ -69,7 +69,10 @@ def test_pca_uncorrelated_features(
     check.equal((num_samples, expected_num_components), projected_features.shape)
 
     # Check explained variance is as expected
-    check.greater_equal(pca.explained_variance.data[:expected_num_components].sum().item(), min_explained_variance)
+    check.greater_equal(
+        pca.explained_variance.data[:expected_num_components].sum().item(),
+        min_explained_variance - 1e-6,  # account for numerical precision
+    )
 
     # Check correlation of projected features are close to zero
     if expected_num_components > 1:
