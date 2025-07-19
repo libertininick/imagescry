@@ -13,9 +13,9 @@ from imagescry.image.io import get_image_hash, read_image_as_rgb_tensor
 
 def test_get_image_hash(image_source: Path | bytes | BytesIO, image_hash: str) -> None:
     """Test getting the hash of an image is consistent."""
-    if isinstance(image_source, Path | bytes):
+    if isinstance(image_source, (Path, bytes)):
         check_functions.equal(image_hash, get_image_hash(image_source))
-    else:
+    elif isinstance(image_source, BytesIO):
         cloned_buffer = BytesIO(image_source.getvalue())
         check_functions.equal(image_hash, get_image_hash(cloned_buffer))
 
