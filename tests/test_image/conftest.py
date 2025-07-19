@@ -55,8 +55,8 @@ def image_shape() -> ImageShape:
     return ImageShape(30, 45)
 
 
-@jaxtyped(typechecker=typechecker)
 @pytest.fixture(scope="session")
+@jaxtyped(typechecker=typechecker)
 def image_tensor(image_shape: ImageShape) -> UInt8[Tensor, "3 {image_shape.height} {image_shape.width}"]:
     """Create a uint8 image tensor test fixture."""
     torch.manual_seed(1234)
@@ -67,7 +67,7 @@ def image_tensor(image_shape: ImageShape) -> UInt8[Tensor, "3 {image_shape.heigh
 def image_source_file(image_tensor: UInt8[Tensor, "3 30 45"], tmp_path_factory: TempPathFactory) -> Path:
     """Create a test image source file."""
     temp_file = tmp_path_factory.mktemp("images") / "test.png"
-    write_png(image_tensor, temp_file)
+    write_png(image_tensor, str(temp_file))
     return temp_file
 
 
