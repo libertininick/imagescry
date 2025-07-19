@@ -144,7 +144,7 @@ def test_from_directory(tmp_path_factory: TempPathFactory) -> None:
     shapes = [(7, 7), (8, 8), (9, 9)]
     for i, shape in enumerate(shapes):
         image_tensor = torch.randint(0, 255, (3, *shape), dtype=torch.uint8)
-        write_png(image_tensor, image_dir / f"{i}.png")
+        write_png(image_tensor, str(image_dir / f"{i}.png"))
 
     # Create dataset from directory
     dataset = ImageFilesDataset.from_directory(image_dir)
@@ -155,9 +155,14 @@ def test_from_directory(tmp_path_factory: TempPathFactory) -> None:
     # Check all images can be loaded
     for i in range(len(dataset)):
         idx, img = dataset[i]
+        # Check index matches expected index
         check_functions.equal(idx, i)
+
+        # Check image has been loaded as RGB tensor with 3 channels
         check_functions.equal(img.shape[0], 3)  # RGB channels
-        check_functions.equal(img.shape[1:], shapes[i])
+
+        # Check shape matches expected shape
+        check_functions.equal(img.shape[1:], dataset.image_infos[i].shape.to_tuple())
 
 
 def test_from_directory_no_images(tmp_path: Path) -> None:
