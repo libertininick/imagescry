@@ -4,7 +4,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from pytest_check import check
+from pytest_check import check_functions
 
 from imagescry.image.info import ImageInfo, ImageShape
 
@@ -15,14 +15,14 @@ def test_image_info_from_source(image_source_file: Path, image_shape: ImageShape
     image_info = ImageInfo.from_source(image_source_file)
 
     # Check attributes
-    check.equal(image_source_file.absolute(), image_info.source, msg="Image source path is not correct")
-    check.equal(image_shape, image_info.shape, msg="Image shape is not correct")
-    check.equal(image_hash, image_info.hash, msg="Image hash is not correct")
+    check_functions.equal(image_source_file.absolute(), image_info.source, msg="Image source path is not correct")
+    check_functions.equal(image_shape, image_info.shape, msg="Image shape is not correct")
+    check_functions.equal(image_hash, image_info.hash, msg="Image hash is not correct")
 
 
 def test_image_shape_from_source(image_source: Path | bytes | BytesIO, image_shape: ImageShape) -> None:
     """Test reading the shape of an image."""
-    check.equal(image_shape, ImageShape.from_source(image_source))
+    check_functions.equal(image_shape, ImageShape.from_source(image_source))
 
 
 def test_image_info_invalid_source_raises(tmp_path: Path) -> None:

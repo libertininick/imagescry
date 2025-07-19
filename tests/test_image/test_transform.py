@@ -5,7 +5,7 @@ from typing import Literal
 import pytest
 import torch
 from jaxtyping import UInt8
-from pytest_check import check
+from pytest_check import check_functions
 from torch import Tensor
 
 from imagescry.image.transforms import normalize_per_channel, resize
@@ -20,12 +20,12 @@ def test_normalize_per_channel(image_tensor: UInt8[Tensor, "C H W"]) -> None:
     channel_stds = normalized_image.std((-2, -1))
 
     # Check the image is normalized
-    check.is_true(torch.allclose(torch.zeros_like(channel_means), channel_means, atol=1e-4))
-    check.is_true(torch.allclose(torch.ones_like(channel_means), channel_stds, atol=1e-4))
+    check_functions.is_true(torch.allclose(torch.zeros_like(channel_means), channel_means, atol=1e-4))
+    check_functions.is_true(torch.allclose(torch.ones_like(channel_means), channel_stds, atol=1e-4))
 
     # # Read the image shape
     # image_shape = read_image_shape(tempfile)
-    # check.equal(image_shape, ImageShape(*image_tensor.shape[-2:]))
+    # check_functions.equal(image_shape, ImageShape(*image_tensor.shape[-2:]))
 
 
 @pytest.mark.parametrize("add_batch", [False, True])
@@ -43,10 +43,10 @@ def test_resize_exact_output_size(
 
     # Resize the image
     resized_image = resize(image_tensor, output_size=output_size, side_ref="height")
-    check.equal(resized_image.shape[-2:], output_size)
+    check_functions.equal(resized_image.shape[-2:], output_size)
 
     # Check that image tensor dtype is float
-    check.is_true(resized_image.dtype.is_floating_point)
+    check_functions.is_true(resized_image.dtype.is_floating_point)
 
 
 @pytest.mark.parametrize("transpose_input", [False, True])
@@ -78,27 +78,27 @@ def test_resize_side_ref(
         or (side_ref == "short" and original_height < original_width)
     ):
         # Check the height is exactly the output size
-        check.equal(
+        check_functions.equal(
             resized_height,
             output_size,
             f"Resized height is not equal to output size: {resized_height} != {output_size}",
         )
 
         # Check the width changed proportionally to the height
-        check.equal(
+        check_functions.equal(
             resized_width,
             pytest.approx(original_width * output_size / original_height, abs=1),
         )
     else:
         # Check the width is exactly the output size
-        check.equal(
+        check_functions.equal(
             resized_width,
             output_size,
             f"Resized width is not equal to output size: {resized_width} != {output_size}",
         )
 
         # Check the height changed proportionally to the width
-        check.equal(
+        check_functions.equal(
             resized_height,
             pytest.approx(original_height * output_size / original_width, abs=1),
         )

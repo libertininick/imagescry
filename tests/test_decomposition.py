@@ -3,7 +3,7 @@
 import pytest
 import torch
 from jaxtyping import Float
-from pytest_check import check
+from pytest_check import check_functions
 from torch import Tensor
 from torch.distributions import MultivariateNormal
 
@@ -50,26 +50,26 @@ def test_pca_uncorrelated_features(
     pca = PCA(min_explained_variance=min_explained_variance)
 
     # Check that the PCA object is not fitted before fitting
-    check.is_false(pca.fitted)
+    check_functions.is_false(pca.fitted)
 
     # Fit PCA model
     pca.fit(uncorrelated_features)
 
     # Check that the PCA object is fitted after fitting
-    check.is_true(pca.fitted)
+    check_functions.is_true(pca.fitted)
 
     # Check length of feature means and explained variances
-    check.equal(pca.feature_means.data.size(1), num_features)
-    check.equal(len(pca.explained_variance.data), num_features)
+    check_functions.equal(pca.feature_means.data.size(1), num_features)
+    check_functions.equal(len(pca.explained_variance.data), num_features)
 
     # Project features
     projected_features = pca.transform(uncorrelated_features)
 
     # Check that the number of projected components is as expected
-    check.equal((num_samples, expected_num_components), projected_features.shape)
+    check_functions.equal((num_samples, expected_num_components), projected_features.shape)
 
     # Check explained variance is as expected
-    check.greater_equal(
+    check_functions.greater_equal(
         pca.explained_variance.data[:expected_num_components].sum().item(),
         min_explained_variance - 1e-6,  # account for numerical precision
     )
@@ -78,7 +78,7 @@ def test_pca_uncorrelated_features(
     if expected_num_components > 1:
         atol = 1e-4
         corr_matrix_abs = torch.abs(torch.corrcoef(projected_features.T))
-        check.is_true(torch.all(torch.tril(corr_matrix_abs, diagonal=-1) <= atol))
+        check_functions.is_true(torch.all(torch.tril(corr_matrix_abs, diagonal=-1) <= atol))
 
 
 @pytest.mark.parametrize(
@@ -94,29 +94,31 @@ def test_pca_correlated_features(
     pca = PCA(min_explained_variance=min_explained_variance)
 
     # Check that the PCA object is not fitted before fitting
-    check.is_false(pca.fitted)
+    check_functions.is_false(pca.fitted)
 
     # Fit PCA model
     pca.fit(correlated_features)
 
     # Check that the PCA object is fitted after fitting
-    check.is_true(pca.fitted)
+    check_functions.is_true(pca.fitted)
 
     # Check length of feature means and explained variances
-    check.equal(pca.feature_means.data.size(1), num_features)
-    check.equal(len(pca.explained_variance.data), num_features)
+    check_functions.equal(pca.feature_means.data.size(1), num_features)
+    check_functions.equal(len(pca.explained_variance.data), num_features)
 
     # Project features
     projected_features = pca.transform(correlated_features)
 
     # Check that the number of projected components is as expected
-    check.equal((num_samples, expected_num_components), projected_features.shape)
+    check_functions.equal((num_samples, expected_num_components), projected_features.shape)
 
     # Check explained variance is as expected
-    check.greater_equal(pca.explained_variance.data[:expected_num_components].sum().item(), min_explained_variance)
+    check_functions.greater_equal(
+        pca.explained_variance.data[:expected_num_components].sum().item(), min_explained_variance
+    )
 
     # Check correlation of projected features are close to zero
     if expected_num_components > 1:
         atol = 1e-4
         corr_matrix_abs = torch.abs(torch.corrcoef(projected_features.T))
-        check.is_true(torch.all(torch.tril(corr_matrix_abs, diagonal=-1) <= atol))
+        check_functions.is_true(torch.all(torch.tril(corr_matrix_abs, diagonal=-1) <= atol))

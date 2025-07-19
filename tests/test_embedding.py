@@ -4,7 +4,7 @@ import math
 
 import pytest
 import torch
-from pytest_check import check
+from pytest_check import check_functions
 
 from imagescry.embedding import EfficientNetEmbedder, EmbeddingBatch
 from imagescry.image.dataset import ImageBatch
@@ -27,9 +27,9 @@ def embedding_batch() -> EmbeddingBatch:
     )
 
     # Check properties
-    check.equal(len(batch), batch_size)
-    check.equal(batch.embedding_dim, embedding_dim)
-    check.equal(batch.spatial_dims, spatial_dims)
+    check_functions.equal(len(batch), batch_size)
+    check_functions.equal(batch.embedding_dim, embedding_dim)
+    check_functions.equal(batch.spatial_dims, spatial_dims)
 
     return batch
 
@@ -47,7 +47,7 @@ def test_embedding_batch_get_flat_vectors(embedding_batch: EmbeddingBatch) -> No
     flat_vectors = embedding_batch.get_flat_vectors()
 
     # Check shape
-    check.equal(
+    check_functions.equal(
         (
             len(embedding_batch) * embedding_batch.spatial_dims[0] * embedding_batch.spatial_dims[1],
             embedding_batch.embedding_dim,
@@ -56,7 +56,7 @@ def test_embedding_batch_get_flat_vectors(embedding_batch: EmbeddingBatch) -> No
     )
 
     # Check values
-    check.is_true(
+    check_functions.is_true(
         torch.allclose(
             flat_vectors, embedding_batch.embeddings.permute(0, 2, 3, 1).reshape(-1, embedding_batch.embedding_dim)
         )

@@ -1,7 +1,7 @@
 """Tests for geometry tools."""
 
 import torch
-from pytest_check import check
+from pytest_check import check_functions
 from shapely.geometry import Polygon
 
 from imagescry.geometry import create_roi_mask
@@ -20,11 +20,11 @@ def test_create_roi_mask_single_polygon() -> None:
     mask = create_roi_mask(roi, original_image_shape, feature_map_shape)
 
     # Check mask is the correct shape
-    check.equal(mask.shape, feature_map_shape)
+    check_functions.equal(mask.shape, feature_map_shape)
 
     # Check the mask is correct
     expected_mask = torch.tensor([[1, 1, 0, 0], [1, 1, 0, 0], [0, 0, 0, 0]])
-    check.is_true(torch.allclose(mask, expected_mask))
+    check_functions.is_true(torch.allclose(mask, expected_mask))
 
 
 def test_create_roi_mask_multiple_polygons() -> None:
@@ -45,8 +45,8 @@ def test_create_roi_mask_multiple_polygons() -> None:
     mask = create_roi_mask(roi, original_image_shape, feature_map_shape)
 
     # Check mask is the correct shape
-    check.equal(mask.shape, feature_map_shape)
+    check_functions.equal(mask.shape, feature_map_shape)
 
     # Check the mask is correct
     expected_mask = torch.tensor([[1, 0], [0, 1]])
-    check.is_true(torch.allclose(mask, expected_mask))
+    check_functions.is_true(torch.allclose(mask, expected_mask))
