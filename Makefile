@@ -103,8 +103,10 @@ test-all-python-versions:
 
 ## Run type checking with mypy
 type-check:
-	@echo "Type checking"
+	@echo "Type checking with mypy"
 	@uv run mypy src/ tests/
+	@echo "Type checking with ty"
+	@uv run ty check src/ tests/
 
 ## Run docstring checks
 docstring-check:
