@@ -3,6 +3,7 @@
 This module contains functions for image I/O operations.
 """
 
+import base64
 from collections.abc import Generator
 from contextlib import contextmanager
 from hashlib import md5
@@ -79,6 +80,22 @@ def read_image_as_rgb_tensor(image_source: ImageSource, device: torch.device | N
     """
     with open_image_source(image_source) as img:
         return pil_to_tensor(img.convert("RGB")).to(device=device)
+
+
+def read_image_and_encode(image_source: ImageSource) -> str:
+    """Read an image file or buffer, and encode it as a base64 string.
+
+    Args:
+        image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
+
+    Returns:
+        str: Image encoded as a base64 string.
+    """
+    with open_image_source(image_source) as img:
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG")
+        img_bytes = buffered.getvalue()
+    return f"data:image/jpeg;base64,{base64.b64encode(img_bytes).decode()}"
 
 
 def validate_filepath(filepath: str | PathLike) -> Path:
