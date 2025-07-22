@@ -83,7 +83,7 @@ def read_image_as_rgb_tensor(image_source: ImageSource, device: torch.device | N
 
 
 def read_image_and_encode(image_source: ImageSource) -> str:
-    """Read an image file or buffer, and encode it as a base64 string.
+    """Read an image file or buffer, and encode it as a base64 string (suitable for HTML embedding).
 
     Args:
         image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
