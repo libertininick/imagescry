@@ -54,7 +54,7 @@ install-uv:
 update:
 	@uv self update
 	@uv cache prune
-	@uv uv python upgrade
+	@uv python upgrade
 	@uv lock --upgrade
 	@uv sync
 	@uv run pre-commit install-hooks
