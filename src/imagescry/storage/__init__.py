@@ -1,0 +1,1 @@
+"""ImageScry storage module."""
