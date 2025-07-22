@@ -87,12 +87,12 @@ class ImageInfo:
     Attributes:
         source (Path): Path to the image file.
         shape (ImageShape): Shape of the image.
-        hash (str): MD5 hash of the image.
+        md5_hash (str): MD5 hash of the image.
     """
 
     source: Path
     shape: ImageShape
-    hash: str
+    md5_hash: str
 
     @classmethod
     def from_source(cls, source: str | PathLike) -> "ImageInfo":
@@ -105,7 +105,7 @@ class ImageInfo:
             ImageInfo: Information about the image source.
         """
         src = validate_filepath(source)
-        return cls(source=src, shape=ImageShape.from_source(src), hash=get_image_hash(src))
+        return cls(source=src, shape=ImageShape.from_source(src), md5_hash=get_image_hash(src))
 
 
 class ImageInfos(AbstractArray[ImageInfo]):
