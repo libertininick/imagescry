@@ -1,5 +1,7 @@
 """Database object models."""
 
+from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +11,9 @@ from jaxtyping import Float32, jaxtyped
 from sqlmodel import Column, Field, LargeBinary, SQLModel, String, TypeDecorator
 from torch import Tensor
 
+from imagescry.decomposition import PCA
 from imagescry.image.info import ImageInfo
+from imagescry.storage.utils import create_lightning_checkpoint
 from imagescry.typechecking import typechecker
 
 
@@ -99,4 +103,63 @@ class Embedding(SQLModel, table=True):
             embedding_height=embedding_height,
             embedding_width=embedding_width,
             embedding_data=embedding_tensor.numpy().tobytes(),
+        )
+
+
+class PCACheckpoint(SQLModel, table=True):
+    """SQLModel for storing a PCA model checkpoint in the pca_checkpoints table.
+
+    Attributes:
+        id (int | None): Primary key, auto-incremented.
+        timestamp (str): Timestamp of when the checkpoint was created, indexed for fast lookup.
+        num_features (int): Number of input features, must be greater than 0.
+        num_components (int): Number of PCA components, must be greater than 0.
+        explained_variance (float): Explained variance ratio of the PCA components, must be between 0.0 and 1.0.
+        checkpoint (bytes): Binary data of the PCA model checkpoint stored as a byte array.
+    """
+
+    __tablename__: str = "pca_checkpoints"  # Manually set the table name
+
+    id: int | None = Field(default=None, primary_key=True)
+    timestamp: str = Field(default_factory=lambda: datetime.now().isoformat(), index=True)
+    num_features: int = Field(gt=0, description="Number of input features")
+    num_components: int = Field(gt=0, description="Number of PCA components")
+    explained_variance: float = Field(ge=0.0, le=1.0, description="Explained variance ratio of the PCA components")
+    checkpoint: bytes = Field(sa_column=Column(LargeBinary), repr=False)
+
+    def load_from_checkpoint(self) -> PCA:
+        """Load the PCA model from the checkpoint data.
+
+        Returns:
+            PCA: The PCA model loaded from the checkpoint.
+        """
+        # Load the checkpoint data into a BytesIO stream
+        checkpoint_stream = BytesIO(self.checkpoint)
+
+        # Load the PCA model from the checkpoint stream
+        pca_model = PCA.load_from_checkpoint(checkpoint_path=checkpoint_stream)
+
+        return pca_model
+
+    @classmethod
+    def create(
+        cls,
+        pca_model: PCA,
+    ) -> "PCACheckpoint":
+        """Create a PCACheckpoint instance from a PCA model.
+
+        Args:
+            pca_model (PCA): The PCA model to create a checkpoint for.
+
+        Returns:
+            PCACheckpoint: An instance of the PCACheckpoint class.
+        """
+        # Create a Lightning checkpoint from the PCA model
+        checkpoint_data = create_lightning_checkpoint(pca_model)
+
+        return cls(
+            num_features=pca_model.num_features,
+            num_components=pca_model.num_components,
+            explained_variance=pca_model.explained_variance.item(),
+            checkpoint=checkpoint_data,
         )
