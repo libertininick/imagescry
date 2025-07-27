@@ -54,7 +54,7 @@ def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None
     check_functions.equal(db_pca_checkpoint.num_components, pca_checkpoint.num_components)
     check_functions.almost_equal(db_pca_checkpoint.explained_variance, pca_checkpoint.explained_variance)
 
-    # Load the PCA model from the checkpoint
+    # Load the PCA model from the checkpoint and verify component vectors match expected
     loaded_pca = db_pca_checkpoint.load_from_checkpoint()
     check_functions.is_true(torch.allclose(loaded_pca.component_vectors, pca.component_vectors))
 
