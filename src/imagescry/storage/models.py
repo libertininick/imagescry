@@ -144,24 +144,21 @@ class PCACheckpoint(SQLModel, table=True):
         return pca_model
 
     @classmethod
-    def create(
-        cls,
-        pca_model: PCA,
-    ) -> "PCACheckpoint":
+    def create(cls, pca: PCA) -> "PCACheckpoint":
         """Create a PCACheckpoint instance from a PCA model.
 
         Args:
-            pca_model (PCA): The PCA model to create a checkpoint for.
+            pca (PCA): The PCA model to create a checkpoint for.
 
         Returns:
             PCACheckpoint: An instance of the PCACheckpoint class.
         """
         # Create a Lightning checkpoint from the PCA model
-        checkpoint_data = create_lightning_checkpoint(pca_model)
+        checkpoint_data = create_lightning_checkpoint(pca)
 
         return cls(
-            num_features=pca_model.num_features,
-            num_components=pca_model.num_components,
-            explained_variance=pca_model.explained_variance.item(),
+            num_features=pca.num_features,
+            num_components=pca.num_components,
+            explained_variance=pca.explained_variance[: pca.num_components].sum().item(),
             checkpoint=checkpoint_data,
         )
