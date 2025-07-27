@@ -1,48 +1,39 @@
 """Database object models."""
 
+from abc import ABC
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import torch
 from jaxtyping import Float32, jaxtyped
-from sqlmodel import Column, Field, LargeBinary, SQLModel, String, TypeDecorator
+from sqlmodel import Column, Field, LargeBinary, SQLModel
 from torch import Tensor
 
 from imagescry.decomposition import PCA
 from imagescry.image.info import ImageInfo
-from imagescry.storage.utils import create_lightning_checkpoint
+from imagescry.storage.utils import PathType, create_lightning_checkpoint
 from imagescry.typechecking import typechecker
 
 
-class PathType(TypeDecorator):
-    """Custom SQLAlchemy type for python Path objects."""
+class BaseStorageModel(ABC, SQLModel):
+    """Base model for all storage models in the application.
 
-    impl = String
-    cache_ok = True
+    This class provides a common interface for all storage models, ensuring they use an integer ID for primary keys.
 
-    @staticmethod
-    def process_bind_param(value: Path | None, _: Any) -> str | None:
-        """Convert Path to string when storing."""
-        if value is not None:
-            return str(value)
-        return value
+    Attributes:
+        id (int | None): Primary key, auto-incremented. This field is inherited by all subclasses and serves as the
+            unique identifier for each record.
+    """
 
-    @staticmethod
-    def process_result_value(value: str | None, _: Any) -> Path | None:
-        """Convert string back to Path when loading."""
-        if value is not None:
-            return Path(value)
-        return value
+    id: int | None = Field(default=None, primary_key=True)
 
 
-class Embedding(SQLModel, table=True):
+class Embedding(BaseStorageModel, table=True):
     """SQLModel for storing an image embedding record in the embeddings table.
 
     Attributes:
-        id (int | None): Primary key, auto-incremented.
         pca_checkpoint_id (int | None): Foreign key referencing the PCA checkpoint used for this embedding.
         md5_hash (str): Unique MD5 hash of the image file. Indexed for fast lookup.
         filepath (Path): Unique file path of the image. Indexed for fast lookup.
@@ -56,7 +47,6 @@ class Embedding(SQLModel, table=True):
 
     __tablename__: str = "embeddings"  # Manually set the table name
 
-    id: int | None = Field(default=None, primary_key=True)
     pca_checkpoint_id: int | None = Field(default=None, foreign_key="pca_checkpoints.id")
     md5_hash: str = Field(unique=True, index=True)
     filepath: Path = Field(sa_column=Column(PathType, unique=True, index=True))
@@ -108,11 +98,10 @@ class Embedding(SQLModel, table=True):
         )
 
 
-class PCACheckpoint(SQLModel, table=True):
+class PCACheckpoint(BaseStorageModel, table=True):
     """SQLModel for storing a PCA model checkpoint in the pca_checkpoints table.
 
     Attributes:
-        id (int | None): Primary key, auto-incremented.
         timestamp (str): Timestamp of when the checkpoint was created, indexed for fast lookup.
         num_features (int): Number of input features, must be greater than 0.
         num_components (int): Number of PCA components, must be greater than 0.
@@ -122,7 +111,6 @@ class PCACheckpoint(SQLModel, table=True):
 
     __tablename__: str = "pca_checkpoints"  # Manually set the table name
 
-    id: int | None = Field(default=None, primary_key=True)
     timestamp: str = Field(default_factory=lambda: datetime.now().isoformat(), index=True)
     num_features: int = Field(gt=0, description="Number of input features")
     num_components: int = Field(gt=0, description="Number of PCA components")
