@@ -80,15 +80,14 @@ class Embedding(SQLModel, table=True):
     @classmethod
     @jaxtyped(typechecker=typechecker)
     def create(
-        cls,
-        image_info: ImageInfo,
-        embedding_tensor: Float32[Tensor, "C H W"],
+        cls, image_info: ImageInfo, embedding_tensor: Float32[Tensor, "C H W"], *, pca_checkpoint_id: int | None = None
     ) -> "Embedding":
         """Create an Embedding instance from image information and embedding tensor.
 
         Args:
             image_info (ImageInfo): Information about the image.
             embedding_tensor (Float32[Tensor, 'C H W']): PyTorch tensor representing the embedding.
+            pca_checkpoint_id (int | None): Foreign key referencing the PCA checkpoint used for this embedding.
 
         Returns:
             Embedding: An instance of the Embedding class.
@@ -97,6 +96,7 @@ class Embedding(SQLModel, table=True):
         embedding_dim, embedding_height, embedding_width = embedding_tensor.shape
 
         return cls(
+            pca_checkpoint_id=pca_checkpoint_id,
             md5_hash=image_info.md5_hash,
             filepath=image_info.source,
             image_height=image_info.shape.height,
