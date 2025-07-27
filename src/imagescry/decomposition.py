@@ -15,7 +15,13 @@ class PCA(LightningModule):
     """
 
     def __init__(
-        self, *, min_num_components: int = 1, max_num_components: int | None = None, min_explained_variance: float = 0.0
+        self,
+        *,
+        min_num_components: int = 1,
+        max_num_components: int | None = None,
+        min_explained_variance: float = 0.0,
+        num_features: int = 0,
+        num_components: int = 0,
     ) -> None:
         """Initialize the PCA model.
 
@@ -27,6 +33,10 @@ class PCA(LightningModule):
             min_explained_variance (float, optional): The minimum percentage of variance that the PCA should explain.
                 If `max_num_components` is not provided, this will be used to determine the maximum number of
                 components. Defaults to 0.0.
+            num_features (int, optional): The number of features in the input data. If not provided, it will be
+                determined from the input data during fitting. Defaults to 0.
+            num_components (int, optional): The number of principal components to keep. If not provided, it will
+                be determined from the input data during fitting. Defaults to 0.
 
         Raises:
             ValueError: If the number of components is less than 1, or if the minimum number of components is greater
@@ -56,9 +66,9 @@ class PCA(LightningModule):
         self._fitted = nn.Parameter(torch.tensor(False), requires_grad=False)
         self._num_features = nn.Parameter(torch.tensor(0), requires_grad=False)
         self._num_components = nn.Parameter(torch.tensor(0), requires_grad=False)
-        self.feature_means: nn.Parameter
-        self.explained_variance: nn.Parameter
-        self.component_vectors: nn.Parameter
+        self.feature_means = nn.Parameter(torch.empty((1, num_features)), requires_grad=False)
+        self.explained_variance = nn.Parameter(torch.empty((num_features,)), requires_grad=False)
+        self.component_vectors = nn.Parameter(torch.empty((num_features, num_components)), requires_grad=False)
 
     def __repr__(self) -> str:
         """str: Representation of the PCA model."""
@@ -131,6 +141,9 @@ class PCA(LightningModule):
 
         # Set fitted flag
         self._fitted = nn.Parameter(torch.tensor(True), requires_grad=False)
+
+        # Update hyperparameters with number of features and components
+        self.hparams.update({"num_features": num_features, "num_components": num_components})
 
         return self
 
