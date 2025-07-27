@@ -43,6 +43,7 @@ class Embedding(SQLModel, table=True):
 
     Attributes:
         id (int | None): Primary key, auto-incremented.
+        pca_checkpoint_id (int | None): Foreign key referencing the PCA checkpoint used for this embedding.
         md5_hash (str): Unique MD5 hash of the image file. Indexed for fast lookup.
         filepath (Path): Unique file path of the image. Indexed for fast lookup.
         image_height (int): Height of the original image in pixels. Must be greater than 0.
@@ -56,6 +57,7 @@ class Embedding(SQLModel, table=True):
     __tablename__: str = "embeddings"  # Manually set the table name
 
     id: int | None = Field(default=None, primary_key=True)
+    pca_checkpoint_id: int | None = Field(default=None, foreign_key="pca_checkpoints.id")
     md5_hash: str = Field(unique=True, index=True)
     filepath: Path = Field(sa_column=Column(PathType, unique=True, index=True))
     image_height: int = Field(gt=0)
