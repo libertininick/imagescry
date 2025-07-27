@@ -84,6 +84,8 @@ def test_create_delete_database(tmp_path: Path) -> None:
     check_functions.is_true(db_manager.delete_database(), "Database should be deleted successfully.")
     check_functions.is_false(db_manager.is_connected, "Database manager should be disconnected after deletion.")
     check_functions.is_false(db_manager.database_exists, "Database file should not exist after deletion.")
+    with pytest.raises(RuntimeError):
+        db_manager.get_session()
 
 
 def test_add_and_get_embedding(db_manager: DatabaseManager, embedding1: Embedding) -> None:
@@ -125,3 +127,28 @@ def test_add_and_get_multiple_embeddings(
     # Check that the retrieved items match the originals
     assert_embeddings_equal(retrieved_items[2], embedding2)
     assert_embeddings_equal(retrieved_items[3], embedding3)
+
+    # Test retrieving all items
+    all_items = db_manager.get_items(Embedding)
+    check_functions.greater_equal(len(all_items), 2, "Should retrieve at least 2 items")
+
+
+def test_add_and_get_empty_items(tmp_path: Path) -> None:
+    """Test retrieving items when no items exist."""
+    db_manager = DatabaseManager(db_dir=tmp_path)
+
+    # Try to retrieve all items when the database is empty
+    items = db_manager.get_items(Embedding)
+    check_functions.equal(len(items), 0, "Should retrieve an empty list when no items exist")
+
+    # Try to get an item by ID when no items exist
+    item = db_manager.get_item(Embedding, 1)
+    check_functions.is_none(item, "Should return None when no items exist")
+
+    # Try adding an empty list of items
+    item_ids = db_manager.add_items([])
+    check_functions.equal(item_ids, [], "Should return an empty list when adding no items")
+
+    # Try to retrieve items with empty list of IDs
+    items = db_manager.get_items(Embedding, [])
+    check_functions.equal(len(items), 0, "Should retrieve an empty list when no IDs are provided")
