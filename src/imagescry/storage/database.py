@@ -2,10 +2,14 @@
 
 from os import PathLike
 from pathlib import Path
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar, Self, TypeVar
 
 from sqlalchemy import Engine
-from sqlmodel import Session, SQLModel, create_engine
+from sqlmodel import Session, SQLModel, create_engine, select
+
+from imagescry.storage.models import BaseStorageModel
+
+StorageModel = TypeVar("StorageModel", bound=BaseStorageModel)
 
 
 class DatabaseManager:
@@ -70,6 +74,59 @@ class DatabaseManager:
         """Context manager exit - close the database connection."""
         self.close()
 
+    def add_item(self, item: BaseStorageModel) -> int:
+        """Add a single item to the database.
+
+        Args:
+            item (BaseStorageModel): Item to add to the database.
+
+        Returns:
+            int: ID of the added item.
+        """
+        return self.add_items([item])[0]
+
+    def add_items(self, items: list[BaseStorageModel]) -> list[int]:
+        """Add multiple items to the database.
+
+        Args:
+            items (list[BaseStorageModel]): List of items to add to the database.
+
+        Returns:
+            list[int]: List of IDs of added items.
+
+        Raises:
+            RuntimeError: If the database engine is not initialized or if adding items fails.
+
+        """
+        # Quick exit if no items to add
+        if not items:
+            return []
+
+        # Check if the engine is initialized
+        if not self.engine:
+            raise RuntimeError("Database engine is not initialized. Call create_engine() first.")
+
+        with Session(self.engine) as session:
+            try:
+                # Add and commit the items to the session
+                session.add_all(items)
+                session.commit()
+
+                # Get the IDs of the added items
+                ids: list[int] = []
+                for item in items:
+                    if item.id is not None:
+                        ids.append(item.id)
+                    else:
+                        raise RuntimeError("Item ID is None after commit, indicating a failure to add to the database.")
+
+                return ids
+
+            except Exception as e:
+                # Rollback the session in case of an error
+                session.rollback()
+                raise RuntimeError(f"Failed to add items to the database: {e}") from e
+
     def close(self) -> None:
         """Close the database connection."""
         if self.engine:
@@ -79,7 +136,17 @@ class DatabaseManager:
     def create_engine(
         self, *, check_same_thread: bool = False, timeout: float = 30.0, pool_recycle: int = 3_600
     ) -> Engine:
-        """Create a new database engine."""
+        """Create a new database engine.
+
+        Args:
+            check_same_thread (bool): If True, connection object created in one thread cannot be used in another thread.
+                Default is False, which allows connections to be shared across threads.
+            timeout (float): Timeout for database connections in seconds. Default is 30.0.
+            pool_recycle (int): Time in seconds to recycle connections in the pool. Default is 3600 (1 hour).
+
+        Returns:
+            Engine: The SQLAlchemy engine for the SQLite database.
+        """
         return create_engine(
             self.db_url,
             echo=False,
@@ -104,6 +171,43 @@ class DatabaseManager:
             return True
 
         return False
+
+    def get_item(self, model: type[StorageModel], item_id: int) -> StorageModel | None:
+        """Get a single item from the database by ID.
+
+        Args:
+            model (type[StorageModel]): The model class to query.
+            item_id (int): ID of the item to retrieve.
+
+        Returns:
+            StorageModel | None: The retrieved item or None if not found.
+        """
+        with Session(self.engine) as session:
+            return session.get(model, item_id)
+
+    def get_items(self, model: type[StorageModel], item_ids: list[int] | None = None) -> list[StorageModel]:
+        """Get multiple items from the database by their IDs.
+
+        Args:
+            model (type[StorageModel]): The model class to query.
+            item_ids (list[int] | None): List of IDs of the items to retrieve or None to retrieve all items.
+                Default is None.
+
+
+        Returns:
+            list[StorageModel]: The retrieved items or an empty list if none found.
+        """
+        with Session(self.engine) as session:
+            # Define selection statement based on whether item_ids is provided
+            if item_ids is None:
+                statement = select(model)
+            else:
+                # If IDs are provided, filter by those IDs
+                if not item_ids:
+                    return []
+                statement = select(model).where(model.id.in_(item_ids))
+
+            return list(session.exec(statement).all())
 
     def get_session(self) -> Session:
         """Get a database session."""
