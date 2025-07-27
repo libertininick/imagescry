@@ -14,6 +14,7 @@ from imagescry.image.info import ImageInfo, ImageShape
 from imagescry.storage.models import Embedding, PCACheckpoint
 
 
+# Fixtures
 @pytest.fixture(scope="session")
 def engine() -> Generator[Engine, None, None]:
     """Create an in-memory SQLite database for testing."""
@@ -31,6 +32,7 @@ def pca() -> PCA:
     return pca
 
 
+# Tests
 def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None:
     """Test the PCACheckpoint model creation and insertion."""
     # Create a sample PCA checkpoint
@@ -88,11 +90,19 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
         statement = select(Embedding).where(Embedding.md5_hash == "test-hash")
         db_embedding = session.exec(statement).one()
 
-    check_functions.equal(db_embedding.md5_hash, "test-hash")
-    check_functions.equal(db_embedding.filepath, Path("/path/to/image.jpg"))
-    check_functions.equal(db_embedding.image_height, 600)
-    check_functions.equal(db_embedding.image_width, 800)
-    check_functions.equal(db_embedding.embedding_dim, 128)
-    check_functions.equal(db_embedding.embedding_height, 20)
-    check_functions.equal(db_embedding.embedding_width, 20)
-    check_functions.is_true(torch.allclose(db_embedding.embedding_tensor, embedding_tensor))
+    assert_embeddings_equal(embedding, db_embedding)
+
+
+# Helpers
+def assert_embeddings_equal(embedding1: Embedding, embedding2: Embedding) -> None:
+    """Assert that two Embedding instances are equal."""
+    check_functions.equal(embedding1.id, embedding2.id)
+    check_functions.equal(embedding1.pca_checkpoint_id, embedding2.pca_checkpoint_id)
+    check_functions.equal(embedding1.md5_hash, embedding2.md5_hash)
+    check_functions.equal(embedding1.filepath, embedding2.filepath)
+    check_functions.equal(embedding1.image_height, embedding2.image_height)
+    check_functions.equal(embedding1.image_width, embedding2.image_width)
+    check_functions.equal(embedding1.embedding_dim, embedding2.embedding_dim)
+    check_functions.equal(embedding1.embedding_height, embedding2.embedding_height)
+    check_functions.equal(embedding1.embedding_width, embedding2.embedding_width)
+    check_functions.is_true(torch.allclose(embedding1.embedding_tensor, embedding2.embedding_tensor))
