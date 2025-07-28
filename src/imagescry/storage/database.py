@@ -2,14 +2,12 @@
 
 from os import PathLike
 from pathlib import Path
-from typing import Any, ClassVar, Self, TypeVar
+from typing import Any, ClassVar, Self
 
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from imagescry.storage.models import BaseStorageModel
-
-StorageModel = TypeVar("StorageModel", bound=BaseStorageModel)
+from imagescry.storage.base import BaseStorageModel, StorageModel
 
 
 class DatabaseManager:

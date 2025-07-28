@@ -1,6 +1,5 @@
 """Database object models."""
 
-from abc import ABC
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
@@ -8,26 +7,14 @@ from pathlib import Path
 import numpy as np
 import torch
 from jaxtyping import Float32, jaxtyped
-from sqlmodel import Column, Field, LargeBinary, SQLModel
+from sqlmodel import Column, Field, LargeBinary
 from torch import Tensor
 
 from imagescry.decomposition import PCA
 from imagescry.image.info import ImageInfo
-from imagescry.storage.utils import PathType, create_lightning_checkpoint
+from imagescry.storage.base import BaseStorageModel, PathType
+from imagescry.storage.utils import create_lightning_checkpoint
 from imagescry.typechecking import typechecker
-
-
-class BaseStorageModel(ABC, SQLModel):
-    """Base model for all storage models in the application.
-
-    This class provides a common interface for all storage models, ensuring they use an integer ID for primary keys.
-
-    Attributes:
-        id (int | None): Primary key, auto-incremented. This field is inherited by all subclasses and serves as the
-            unique identifier for each record.
-    """
-
-    id: int | None = Field(default=None, primary_key=True)
 
 
 class Embedding(BaseStorageModel, table=True):
