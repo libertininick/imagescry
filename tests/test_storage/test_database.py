@@ -14,7 +14,7 @@ from tests.test_storage.test_models import assert_embeddings_equal
 
 
 # Fixtures
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def embedding1() -> Embedding:
     """Fixture to create a sample Embedding instance."""
     # Create a sample ImageInfo
@@ -31,7 +31,7 @@ def embedding1() -> Embedding:
     return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, pca_checkpoint_id=1)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def embedding2() -> Embedding:
     """Fixture to create a sample Embedding instance."""
     # Create a sample ImageInfo
@@ -48,7 +48,7 @@ def embedding2() -> Embedding:
     return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, pca_checkpoint_id=1)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def embedding3() -> Embedding:
     """Fixture to create a sample Embedding instance."""
     # Create a sample ImageInfo
@@ -65,7 +65,13 @@ def embedding3() -> Embedding:
     return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, pca_checkpoint_id=1)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
+def embeddings(embedding1: Embedding, embedding2: Embedding, embedding3: Embedding) -> list[Embedding]:
+    """Fixture to create a list of sample Embedding instances."""
+    return [embedding1, embedding2, embedding3]
+
+
+@pytest.fixture(scope="function")
 def db_manager(tmp_path_factory: pytest.TempPathFactory) -> Generator[DatabaseManager, None, None]:
     """Fixture to create a DatabaseManager instance."""
     with DatabaseManager(db_dir=tmp_path_factory.mktemp("db_dir")) as db_manager:
@@ -109,28 +115,48 @@ def test_add_and_get_embedding(db_manager: DatabaseManager, embedding1: Embeddin
         db_manager.add_item(embedding1_clone)
 
 
-def test_add_and_get_multiple_embeddings(
-    db_manager: DatabaseManager, embedding2: Embedding, embedding3: Embedding
-) -> None:
+def test_add_and_get_multiple_embeddings(db_manager: DatabaseManager, embeddings: list[Embedding]) -> None:
     """Test adding and retrieving multiple embeddings."""
     # Add multiple embeddings to the database
-    item_ids = db_manager.add_items([embedding2, embedding3])
-    check_functions.equal([2, 3], sorted(item_ids), "Item IDs do not match expected values")
+    item_ids = db_manager.add_items(embeddings)
+    check_functions.equal([1, 2, 3], item_ids, "Item IDs do not match expected values")
 
     # Retrieve the items by IDs
     retrieved_items = db_manager.get_items(Embedding, item_ids)
-    assert len(retrieved_items) == 2
-
-    # Index the items by ID for easy comparison
-    retrieved_items = {item.id: item for item in retrieved_items}
+    assert len(retrieved_items) == len(embeddings), "Number of retrieved items does not match number of added items"
 
     # Check that the retrieved items match the originals
-    assert_embeddings_equal(retrieved_items[2], embedding2)
-    assert_embeddings_equal(retrieved_items[3], embedding3)
+    for original, retrieved in zip(embeddings, retrieved_items, strict=True):
+        assert_embeddings_equal(retrieved, original)
 
-    # Test retrieving all items
-    all_items = db_manager.get_items(Embedding)
-    check_functions.greater_equal(len(all_items), 2, "Should retrieve at least 2 items")
+
+def test_get_all_items(db_manager: DatabaseManager, embeddings: list[Embedding]) -> None:
+    """Test retrieving all items from the database."""
+    # Add multiple embeddings to the database
+    db_manager.add_items(embeddings)
+
+    # Retrieve all items
+    retrieved_items = db_manager.get_items(Embedding)
+    check_functions.equal(
+        len(retrieved_items), len(embeddings), "Number of retrieved items does not match number of added items"
+    )
+
+    # Check that the retrieved items match the originals
+    for original, retrieved in zip(embeddings, retrieved_items, strict=True):
+        assert_embeddings_equal(retrieved, original)
+
+
+def test_get_item_ids(db_manager: DatabaseManager, embeddings: list[Embedding]) -> None:
+    """Test retrieving item IDs from the database."""
+    # Add multiple embeddings to the database
+    db_manager.add_items(embeddings)
+
+    # Retrieve item IDs
+    item_ids = db_manager.get_item_ids(Embedding)
+
+    # Check retrieved IDs match the expected range
+    expected_ids = list(range(1, len(embeddings) + 1))
+    check_functions.equal(item_ids, expected_ids, "Retrieved IDs does not match expected range")
 
 
 def test_add_and_get_empty_items(tmp_path: Path) -> None:
