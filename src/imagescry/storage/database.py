@@ -85,11 +85,11 @@ class DatabaseManager:
         """
         return self.add_items([item])[0]
 
-    def add_items(self, items: list[BaseStorageModel]) -> list[int]:
+    def add_items(self, items: list[StorageModel]) -> list[int]:
         """Add multiple items to the database.
 
         Args:
-            items (list[BaseStorageModel]): List of items to add to the database.
+            items (list[StorageModel]): List of items to add to the database.
 
         Returns:
             list[int]: List of IDs of added items.
@@ -208,6 +208,19 @@ class DatabaseManager:
                 statement = select(model).where(model.id.in_(item_ids))
 
             return list(session.exec(statement).all())
+
+    def get_item_ids(self, model: type[StorageModel]) -> list[int]:
+        """Get all item IDs for a given model.
+
+        Args:
+            model (type[StorageModel]): The model class (table) to query.
+
+        Returns:
+            list[int]: List of IDs of all (non-null) items in the specified table.
+        """
+        with Session(self.engine) as session:
+            statement = select(model.id)
+            return [obj_id for obj_id in session.exec(statement) if obj_id is not None]
 
     def get_session(self) -> Session:
         """Get a database session."""
