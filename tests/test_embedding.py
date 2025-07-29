@@ -16,6 +16,17 @@ torch.manual_seed(SEED)
 
 # Fixtures
 @pytest.fixture(scope="session")
+def device() -> str:
+    """Compute device."""
+    if torch.cuda.is_available():
+        return "cuda"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
+
+
+@pytest.fixture(scope="session")
 def embedding_batch() -> EmbeddingBatch:
     """Fixture for an embedding batch."""
     batch_size = 3
@@ -35,9 +46,10 @@ def embedding_batch() -> EmbeddingBatch:
 
 
 @pytest.fixture(scope="session")
-def efficientnet_embedder() -> EfficientNetEmbedder:
+def efficientnet_embedder(device: str) -> EfficientNetEmbedder:
     """Fixture for an EfficientNet embedder."""
-    return EfficientNetEmbedder()
+    model = EfficientNetEmbedder().to(device)
+    return model
 
 
 # Tests
@@ -77,7 +89,7 @@ def test_embedding_predict_step(
     image_batch = ImageBatch(
         indices=torch.arange(batch_size),
         images=torch.randint(0, 256, (batch_size, 3, height, width)).to(torch.uint8),
-    )
+    ).to(efficientnet_embedder.device)
 
     # Extract embedding
     embedding_batch = efficientnet_embedder.predict_step(image_batch)
