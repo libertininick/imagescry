@@ -150,6 +150,7 @@ class ImageFilesDataset(Dataset):
         max_batch_size: int,
         *,
         sample_size: int | float | None = None,
+        num_workers: int = 0,
         seed: int | None = None,
     ) -> DataLoader:
         """Get a `DataLoader` for the dataset using a `SimilarShapeBatcher` to batch images by shape.
@@ -160,6 +161,7 @@ class ImageFilesDataset(Dataset):
             max_batch_size (int): The maximum batch size for the `DataLoader`.
             sample_size (int | float | None, optional): The size of the subset to sample. If a float, it is interpreted
                 as a fraction of the dataset. Defaults to None, which means no sampling.
+            num_workers (int, optional): The number of worker processes to use for loading images. Defaults to 0.
             seed (int | None, optional): The seed to use for the random number generator. Defaults to None.
 
         Returns:
@@ -177,6 +179,9 @@ class ImageFilesDataset(Dataset):
             subset or self,
             batch_sampler=SimilarShapeBatcher(shapes, max_batch_size),
             collate_fn=_collate_image_batch,
+            num_workers=num_workers,
+            pin_memory=torch.cuda.is_available(),
+            persistent_workers=num_workers > 0,
         )
 
     def sample(self, size: int | float, *, seed: int | None = None) -> Subset:
