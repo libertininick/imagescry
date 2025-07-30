@@ -11,7 +11,6 @@ from pytest import FixtureRequest, TempPathFactory
 from torch import Tensor
 from torchvision.io import write_png
 
-from imagescry.image.dataset import ImageFilesDataset
 from imagescry.image.info import ImageShape
 from imagescry.typechecking import typechecker
 
@@ -21,34 +20,6 @@ torch.manual_seed(SEED)
 
 
 # Fixtures
-@pytest.fixture(scope="session")
-def variable_size_image_dataset(tmp_path_factory: TempPathFactory) -> ImageFilesDataset:
-    """Create a variable size image dataset test fixture."""
-    # Generate a set of image with random shapes and save them to disk
-    image_dir = tmp_path_factory.mktemp("images")
-    shapes = [
-        (7, 7),
-        (7, 8),
-        (8, 8),
-        (8, 8),
-        (7, 7),
-        (5, 7),
-        (8, 8),
-        (8, 7),
-        (8, 7),
-        (7, 7),
-        (7, 7),
-        (2, 2),
-        (3, 2),
-        (2, 2),
-    ]
-    for i, shape in enumerate(shapes):
-        image_tensor = torch.randint(0, 255, (3, *shape), dtype=torch.uint8)
-        write_png(image_tensor, str(image_dir / f"{i}.png"))
-
-    return ImageFilesDataset.from_directory(image_dir)
-
-
 @pytest.fixture(scope="session")
 def image_shape() -> ImageShape:
     """Create a image shape test fixture."""

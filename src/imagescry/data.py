@@ -1,6 +1,6 @@
-"""Image dataset module.
+"""Imagescry data module.
 
-This module contains classes for creating image datasets and dataloaders.
+This module contains classes for creating datasets and dataloaders.
 """
 
 from collections.abc import Generator, Iterable, Sequence

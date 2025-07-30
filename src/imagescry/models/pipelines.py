@@ -9,7 +9,7 @@ from lightning.pytorch.accelerators import Accelerator
 from more_itertools import flatten
 from torch.utils.data import DataLoader
 
-from imagescry.image.dataset import ImageBatch
+from imagescry.data import ImageBatch
 from imagescry.image.info import ImageInfos
 from imagescry.models.decomposition import PCA
 from imagescry.models.embedding import EmbeddingBatch, EmbeddingModule
