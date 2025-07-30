@@ -9,8 +9,8 @@ from pytest_check import check_functions
 from sqlalchemy import Engine
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from imagescry.decomposition import PCA
 from imagescry.image.info import ImageInfo, ImageShape
+from imagescry.models.decomposition import PCA
 from imagescry.storage.models import Embedding, PCACheckpoint
 
 

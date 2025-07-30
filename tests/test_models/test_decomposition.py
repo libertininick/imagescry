@@ -7,7 +7,7 @@ from pytest_check import check_functions
 from torch import Tensor
 from torch.distributions import MultivariateNormal
 
-from imagescry.decomposition import PCA
+from imagescry.models.decomposition import PCA
 
 # Fixtures
 num_samples = 1_000

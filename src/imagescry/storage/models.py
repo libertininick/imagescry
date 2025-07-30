@@ -10,8 +10,8 @@ from jaxtyping import Float32, jaxtyped
 from sqlmodel import Column, Field, LargeBinary
 from torch import Tensor
 
-from imagescry.decomposition import PCA
 from imagescry.image.info import ImageInfo
+from imagescry.models.decomposition import PCA
 from imagescry.storage.base import BaseStorageModel, PathType
 from imagescry.storage.utils import create_lightning_checkpoint
 from imagescry.typechecking import typechecker
