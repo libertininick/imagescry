@@ -8,6 +8,7 @@ from typing import Literal, cast
 import torch
 from jaxtyping import Float, Int64, UInt8, jaxtyped
 from lightning import LightningModule, Trainer
+from lightning.pytorch.accelerators import Accelerator
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torchvision.models import (
@@ -19,7 +20,6 @@ from torchvision.models import (
     efficientnet_v2_s,
 )
 
-from imagescry.decomposition import PCA
 from imagescry.image.dataset import ImageBatch
 from imagescry.image.transforms import normalize_per_channel, resize
 from imagescry.typechecking import typechecker
@@ -146,77 +146,32 @@ class EmbeddingModule(ABC, LightningModule):
         return EmbeddingBatch(indices=batch.indices, embeddings=x)
 
     def embed_images(
-        self, dataloader: DataLoader, *, accelerator: str = "auto", devices: list[int] | str | int = "auto"
+        self,
+        dataloader: DataLoader,
+        *,
+        accelerator: str | Accelerator = "auto",
+        devices: list[int] | str | int = "auto",
     ) -> list[EmbeddingBatch]:
         """Run the embedding module on a dataloader in inference mode and return a list of `EmbeddingBatch` objects.
 
         Args:
             dataloader (DataLoader): Dataloader that yields `ImageBatch` objects.
-            accelerator (str): The accelerator to use. Defaults to "auto".
+            accelerator (str | Accelerator): The accelerator to use. Defaults to "auto".
             devices (list[int] | str | int): The devices to use. Defaults to "auto".
 
         Returns:
             list[EmbeddingBatch]: The embeddings of the images.
-
-        Raises:
-            ValueError: If no results were returned from the inference run.
         """
         with TemporaryDirectory() as temp_dir:
             trainer = Trainer(accelerator=accelerator, devices=devices, default_root_dir=temp_dir)
             results = trainer.predict(self, dataloader)
-            if results is None:
-                raise ValueError("No results were returned from the inference run.")
-            return cast(list[EmbeddingBatch], results)
+            return cast(list[EmbeddingBatch], results or [])
 
     @property
     @abstractmethod
     def embedding_dim(self) -> int:
         """int: Embedding dimension."""
         ...  # pragma: no cover
-
-
-class EmbeddingPCAPipeline(LightningModule):
-    """Pipeline that embeds images and then transforms the embeddings to lower-dimensional space using PCA."""
-
-    def __init__(self, embedding_model: EmbeddingModule, pca: PCA) -> None:
-        """Initialize the pipeline.
-
-        Args:
-            embedding_model (EmbeddingModule): Pretrained embedding model to use.
-            pca (PCA): Pretrained PCA model to use.
-
-        Raises:
-            ValueError: If the PCA model is not fitted.
-        """
-        super().__init__()
-        self.embedding_model = embedding_model
-        if not pca.fitted:
-            raise ValueError("PCA model must be fitted before it can be used in the pipeline.")
-        self.pca = pca
-
-    @jaxtyped(typechecker=typechecker)
-    def predict_step(self, batch: ImageBatch) -> EmbeddingBatch:
-        """Embed images and then transform the embeddings to lower-dimensional space using PCA.
-
-        Args:
-            batch (ImageBatch): Batch of images and their dataset indices.
-
-        Returns:
-            EmbeddingBatch: Compressed embedding feature map for the batch of images.
-        """
-        # Embed images
-        batch_size = len(batch)
-        full_embeddings = self.embedding_model.predict_step(batch)
-
-        # Transform embedding vectors to lower-dimensional space
-        compressed_flat_embeddings = self.pca.transform(full_embeddings.get_flat_vectors())
-
-        # Reshape embeddings to original spatial dimensions
-        compressed_embeddings = compressed_flat_embeddings.reshape(
-            batch_size, *full_embeddings.spatial_dims, self.pca.num_components
-        ).permute(0, 3, 1, 2)
-
-        return EmbeddingBatch(indices=batch.indices, embeddings=compressed_embeddings)
 
 
 # Concrete implementations
