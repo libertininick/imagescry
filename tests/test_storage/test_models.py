@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from imagescry.image.info import ImageInfo, ImageShape
 from imagescry.models.decomposition import PCA
-from imagescry.storage.models import Embedding, PCACheckpoint
+from imagescry.storage.models import Embedding, LightningCheckpoint
 
 
 # Fixtures
@@ -34,9 +34,9 @@ def pca() -> PCA:
 
 # Tests
 def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None:
-    """Test the PCACheckpoint model creation and insertion."""
+    """Test the LightningCheckpoint model creation and insertion from a PCA model."""
     # Create a sample PCA checkpoint
-    pca_checkpoint = PCACheckpoint.create(pca)
+    pca_checkpoint = LightningCheckpoint.create(pca, model_name="test_pca_checkpoint")
 
     # Add PCA checkpoint to the database
     with Session(engine) as session:
@@ -49,15 +49,14 @@ def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None
 
     # Get the PCA checkpoint from the database and verify attributes match the original
     with Session(engine) as session:
-        statement = select(PCACheckpoint).where(PCACheckpoint.id == pca_checkpoint.id)
+        statement = select(LightningCheckpoint).where(LightningCheckpoint.id == pca_checkpoint.id)
         db_pca_checkpoint = session.exec(statement).one()
 
-    check_functions.equal(db_pca_checkpoint.num_features, pca_checkpoint.num_features)
-    check_functions.equal(db_pca_checkpoint.num_components, pca_checkpoint.num_components)
-    check_functions.almost_equal(db_pca_checkpoint.explained_variance, pca_checkpoint.explained_variance)
+    # Test model class retrieval
+    check_functions.equal(db_pca_checkpoint.get_model_class(), PCA)
 
     # Load the PCA model from the checkpoint and verify component vectors match expected
-    loaded_pca = db_pca_checkpoint.load_from_checkpoint()
+    loaded_pca = db_pca_checkpoint.load_from_checkpoint(PCA)
     check_functions.is_true(torch.allclose(loaded_pca.component_vectors, pca.component_vectors))
 
 
@@ -97,7 +96,7 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
 def assert_embeddings_equal(embedding1: Embedding, embedding2: Embedding) -> None:
     """Assert that two Embedding instances are equal."""
     check_functions.equal(embedding1.id, embedding2.id)
-    check_functions.equal(embedding1.pca_checkpoint_id, embedding2.pca_checkpoint_id)
+    check_functions.equal(embedding1.checkpoint_id, embedding2.checkpoint_id)
     check_functions.equal(embedding1.md5_hash, embedding2.md5_hash)
     check_functions.equal(embedding1.filepath, embedding2.filepath)
     check_functions.equal(embedding1.image_height, embedding2.image_height)

@@ -28,7 +28,7 @@ def embedding1() -> Embedding:
     embedding_tensor = torch.randn(128, 20, 20)
 
     # Create an Embedding instance from the ImageInfo and tensor
-    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, pca_checkpoint_id=1)
+    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, checkpoint_id=1)
 
 
 @pytest.fixture(scope="function")
@@ -45,7 +45,7 @@ def embedding2() -> Embedding:
     embedding_tensor = torch.randn(128, 20, 15)
 
     # Create an Embedding instance from the ImageInfo and tensor
-    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, pca_checkpoint_id=1)
+    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, checkpoint_id=1)
 
 
 @pytest.fixture(scope="function")
@@ -62,7 +62,7 @@ def embedding3() -> Embedding:
     embedding_tensor = torch.randn(128, 15, 20)
 
     # Create an Embedding instance from the ImageInfo and tensor
-    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, pca_checkpoint_id=1)
+    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, checkpoint_id=1)
 
 
 @pytest.fixture(scope="function")

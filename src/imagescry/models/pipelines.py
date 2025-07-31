@@ -89,7 +89,7 @@ class EmbeddingPCAPipeline(LightningModule):
         # Store embeddings in the database
         batch_image_infos = self.image_infos[batch.indices.cpu().tolist()]
         embeddings = [
-            Embedding.create(image_info, compressed_embeddings[i].cpu(), pca_checkpoint_id=self.pca_checkpoint_id)
+            Embedding.create(image_info, compressed_embeddings[i].cpu(), checkpoint_id=self.pca_checkpoint_id)
             for i, image_info in enumerate(batch_image_infos)
         ]
         embedding_ids = self.db_manager.add_items(embeddings)
