@@ -320,25 +320,34 @@ class ImageFilesDataset(Dataset):
 class StoredEmbeddingsDataset(Dataset):
     """Dataset of stored embeddings."""
 
-    def __init__(self, db_manager: DatabaseManager) -> None:
+    def __init__(self, db_manager: DatabaseManager, embedding_ids: list[int] | None = None) -> None:
         """Initialize the dataset.
 
         Args:
             db_manager (DatabaseManager): The database manager to use for accessing stored embeddings.
+            embedding_ids (list[int] | None, optional): List of embedding IDs to include in the dataset. If None,
+                all embeddings will be included. Defaults to None.
         """
         self.db_manager = db_manager
 
+        # Define the SQL statement to get embedding ids and their spatial dimensions
+        statement = select(Embedding.id, Embedding.embedding_height, Embedding.embedding_width)
+        if embedding_ids is not None:
+            statement = statement.where(Embedding.id.in_(embedding_ids))
+
+        # Execute the statement and get the results
         with db_manager.get_session() as session:
-            # Get all stored embeddings
-            statement = select(Embedding.id, Embedding.embedding_height, Embedding.embedding_width)
             result = session.exec(statement).all()
+
+        # Unpack the results
         self.embedding_ids = [emb_id for emb_id, _, _ in result if emb_id is not None]
         self.max_height = max((height for _, height, _ in result if height is not None), default=0)
         self.max_width = max((width for _, _, width in result if width is not None), default=0)
 
     def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], Float[Tensor, "E H W"]]:
-        """Get an embedding and its index from the dataset."""
-        embedding = self.db_manager.get_item(Embedding, self.embedding_ids[idx])
+        """Get an embedding and its id from the dataset."""
+        embedding_id = self.embedding_ids[idx]
+        embedding = self.db_manager.get_item(Embedding, embedding_id)
         if embedding is None:
             raise IndexError(f"Embedding with index {idx} does not exist in the database.")
 
@@ -354,8 +363,9 @@ class StoredEmbeddingsDataset(Dataset):
                 self.max_height - embedding_tensor.size(1),
             )
             embedding_tensor = torch.nn.functional.pad(embedding_tensor, padding, mode="constant", value=0)
-        # Return image index and tensor
-        return torch.tensor(idx), embedding_tensor
+
+        # Return embedding id and padded embedding tensor
+        return torch.tensor(embedding_id), embedding_tensor
 
 
 # Sampler classes
