@@ -1,12 +1,10 @@
 """Embedding model for featurizing images."""
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from tempfile import TemporaryDirectory
 from typing import Literal, cast
 
-import torch
-from jaxtyping import Float, Int64, UInt8, jaxtyped
+from jaxtyping import Float, UInt8, jaxtyped
 from lightning import LightningModule, Trainer
 from lightning.pytorch.accelerators import Accelerator
 from torch import Tensor, nn
@@ -20,77 +18,9 @@ from torchvision.models import (
     efficientnet_v2_s,
 )
 
-from imagescry.data import ImageBatch
+from imagescry.data import EmbeddingBatch, ImageBatch
 from imagescry.image.transforms import normalize_per_channel, resize
 from imagescry.typechecking import typechecker
-
-
-@jaxtyped(typechecker=typechecker)
-@dataclass(frozen=True, slots=True)
-class EmbeddingBatch:
-    """Batch of image embeddings and their dataset indices.
-
-    Attributes:
-        indices (Int64[Tensor, "B"]): Dataset indices of the embeddings.
-        embeddings (Float[Tensor, "B E H W"]): Batch of image embeddings, with embedding dimension `E`.
-    """
-
-    indices: Int64[Tensor, "B"]
-    embeddings: Float[Tensor, "B E H W"]
-
-    def __len__(self) -> int:
-        """Return the number of embeddings in the batch."""
-        return len(self.indices)
-
-    def __post_init__(self) -> None:
-        """Check that both tensors are on the same device."""
-        if self.indices.device != self.embeddings.device:
-            raise ValueError(
-                "Tensors must be on the same device. "
-                f"Got indices on {self.indices.device} and embeddings on {self.embeddings.device}"
-            )
-
-    def cpu(self) -> "EmbeddingBatch":
-        """Move tensors to the CPU.
-
-        Returns:
-            EmbeddingBatch: A new EmbeddingBatch with tensors on the CPU.
-        """
-        return self.to("cpu")
-
-    def get_flat_vectors(self) -> Float[Tensor, "N E"]:
-        """Flatten batch and spatial dimensions of embeddings.
-
-        Returns:
-            Float[Tensor, "N E"]: Flattened spatial embeddings.
-        """
-        return self.embeddings.permute(0, 2, 3, 1).reshape(-1, self.embedding_dim)
-
-    def to(self, device: str | torch.device) -> "EmbeddingBatch":
-        """Move tensors to the specified device.
-
-        Args:
-            device (str | torch.device): The device to move the tensors to.
-
-        Returns:
-            EmbeddingBatch: A new EmbeddingBatch with tensors on the specified device.
-        """
-        return EmbeddingBatch(indices=self.indices.to(device), embeddings=self.embeddings.to(device))
-
-    @property
-    def device(self) -> torch.device:
-        """Get the device that the tensors are on."""
-        return self.indices.device
-
-    @property
-    def embedding_dim(self) -> int:
-        """int: Embedding dimension."""
-        return self.embeddings.size(1)
-
-    @property
-    def spatial_dims(self) -> tuple[int, int]:
-        """tuple[int, int]: Spatial dimensions of the embeddings."""
-        return self.embeddings.size(2), self.embeddings.size(3)
 
 
 # Interfaces

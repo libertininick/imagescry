@@ -6,8 +6,8 @@ import pytest
 import torch
 from pytest_check import check_functions
 
-from imagescry.data import ImageBatch
-from imagescry.models.embedding import EfficientNetEmbedder, EmbeddingBatch
+from imagescry.data import EmbeddingBatch, ImageBatch
+from imagescry.models.embedding import EfficientNetEmbedder
 
 # Seed
 SEED = 1234
