@@ -102,6 +102,20 @@ class LightningCheckpoint(BaseStorageModel, table=True):
         package_version (str): Version of the package containing the model.
         size (int): Size of the checkpoint in bytes, must be greater than 0.
         checkpoint (bytes): Binary data of the lightning model checkpoint stored as a byte array.
+
+    Examples:
+        ```python
+        # Get the checkpoint from the database by ID
+        with Session(engine) as session:
+            statement = select(LightningCheckpoint).where(LightningCheckpoint.id == my_model_id)
+            checkpoint = session.exec(statement).one()
+
+        # Get the model class from the checkpoint
+        model_class = checkpoint.get_model_class()
+
+        # Load the model from the checkpoint
+        model = checkpoint.load_from_checkpoint(model_class)
+        ```
     """
 
     __tablename__: str = "checkpoints"  # Manually set the table name
