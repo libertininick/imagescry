@@ -13,12 +13,15 @@ from typing import Self
 import torch
 from jaxtyping import Float, Int64, UInt8, jaxtyped
 from more_itertools import chunked, split_when
+from sqlmodel import select
 from torch import Tensor
 from torch.utils.data import DataLoader, Dataset, Sampler, Subset
 from tqdm.contrib.concurrent import thread_map
 
 from imagescry.image.info import ImageInfo, ImageInfos, ImageShape
 from imagescry.image.io import read_image_as_rgb_tensor
+from imagescry.storage.database import DatabaseManager
+from imagescry.storage.models import Embedding
 from imagescry.typechecking import typechecker
 
 
@@ -317,7 +320,42 @@ class ImageFilesDataset(Dataset):
 class StoredEmbeddingsDataset(Dataset):
     """Dataset of stored embeddings."""
 
-    pass
+    def __init__(self, db_manager: DatabaseManager) -> None:
+        """Initialize the dataset.
+
+        Args:
+            db_manager (DatabaseManager): The database manager to use for accessing stored embeddings.
+        """
+        self.db_manager = db_manager
+
+        with db_manager.get_session() as session:
+            # Get all stored embeddings
+            statement = select(Embedding.id, Embedding.embedding_height, Embedding.embedding_width)
+            result = session.exec(statement).all()
+        self.embedding_ids = [emb_id for emb_id, _, _ in result if emb_id is not None]
+        self.max_height = max((height for _, height, _ in result if height is not None), default=0)
+        self.max_width = max((width for _, _, width in result if width is not None), default=0)
+
+    def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], Float[Tensor, "E H W"]]:
+        """Get an embedding and its index from the dataset."""
+        embedding = self.db_manager.get_item(Embedding, self.embedding_ids[idx])
+        if embedding is None:
+            raise IndexError(f"Embedding with index {idx} does not exist in the database.")
+
+        # Get embedding tensor
+        embedding_tensor = embedding.embedding_tensor
+
+        # Pad embedding tensor to max height and width
+        if embedding_tensor.size(1) < self.max_height or embedding_tensor.size(2) < self.max_width:
+            padding = (
+                0,
+                self.max_width - embedding_tensor.size(2),
+                0,
+                self.max_height - embedding_tensor.size(1),
+            )
+            embedding_tensor = torch.nn.functional.pad(embedding_tensor, padding, mode="constant", value=0)
+        # Return image index and tensor
+        return torch.tensor(idx), embedding_tensor
 
 
 # Sampler classes
