@@ -1,0 +1,1 @@
+"""ImageScry web application."""
