@@ -13,7 +13,7 @@ from imagescry.image.io import read_image_and_encode
 web_app = dash.Dash(__name__)
 
 # Path to your image file
-IMAGE_PATH = "data/Camelia/RGB/S1026398.JPG"
+IMAGE_PATH = "data/ds/RGB/S1026398.JPG"
 MAX_SIZE = 1_280
 
 # Get image info and scale it down
