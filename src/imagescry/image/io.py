@@ -76,10 +76,27 @@ def read_image_as_rgb_tensor(image_source: ImageSource, device: torch.device | N
         device (torch.device | None, optional): The device to put the tensor on. Defaults to None, which uses CPU.
 
     Returns:
-        UInt8[Tensor, '3 H W']: Image as a RGB tensor with shape [3, H, W] and integer values in the range [0, 255]
+        UInt8[Tensor, '3 H W']: Image as a RGB tensor with shape [3, H, W] a&nd integer values in the range [0, 255]
     """
     with open_image_source(image_source) as img:
         return pil_to_tensor(img.convert("RGB")).to(device=device)
+
+
+@jaxtyped(typechecker=typechecker)
+def read_image_as_grayscale_tensor(
+    image_source: ImageSource, device: torch.device | None = None
+) -> UInt8[Tensor, "1 H W"]:
+    """Read an image file or buffer, and convert it to a grayscale PyTorch tensor.
+
+    Args:
+        image_source (ImageSource): File path, bytes object, or a bytes buffer containing the image data.
+        device (torch.device | None, optional): The device to put the tensor on. Defaults to None, which uses CPU.
+
+    Returns:
+        UInt8[Tensor, '1 H W']: Image as a grayscale tensor with shape [1, H, W] & integer values in the range [0, 255]
+    """
+    with open_image_source(image_source) as img:
+        return pil_to_tensor(img.convert("L")).to(device=device)
 
 
 def read_image_and_encode(image_source: ImageSource) -> str:
