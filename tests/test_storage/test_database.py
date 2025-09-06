@@ -7,7 +7,6 @@ import pytest
 import torch
 from pytest_check import check_functions
 
-from imagescry.image.info import ImageInfo, ImageShape
 from imagescry.storage.database import DatabaseManager
 from imagescry.storage.models import Embedding
 from tests.test_storage.test_models import assert_embeddings_equal
@@ -17,52 +16,31 @@ from tests.test_storage.test_models import assert_embeddings_equal
 @pytest.fixture(scope="function")
 def embedding1() -> Embedding:
     """Fixture to create a sample Embedding instance."""
-    # Create a sample ImageInfo
-    image_info = ImageInfo(
-        source=Path("/path/to/image-1.jpg"),
-        shape=ImageShape(width=800, height=800),
-        md5_hash="1",
-    )
-
     # Create a sample embedding tensor
     embedding_tensor = torch.randn(128, 20, 20)
 
-    # Create an Embedding instance from the ImageInfo and tensor
-    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, checkpoint_id=1)
+    # Create an Embedding instance with dummy image_id
+    return Embedding.create(image_id=1, embedding_tensor=embedding_tensor, checkpoint_id=1)
 
 
 @pytest.fixture(scope="function")
 def embedding2() -> Embedding:
     """Fixture to create a sample Embedding instance."""
-    # Create a sample ImageInfo
-    image_info = ImageInfo(
-        source=Path("/path/to/image-2.jpg"),
-        shape=ImageShape(width=800, height=600),
-        md5_hash="2",
-    )
-
     # Create a sample embedding tensor
     embedding_tensor = torch.randn(128, 20, 15)
 
-    # Create an Embedding instance from the ImageInfo and tensor
-    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, checkpoint_id=1)
+    # Create an Embedding instance with dummy image_id
+    return Embedding.create(image_id=2, embedding_tensor=embedding_tensor, checkpoint_id=1)
 
 
 @pytest.fixture(scope="function")
 def embedding3() -> Embedding:
     """Fixture to create a sample Embedding instance."""
-    # Create a sample ImageInfo
-    image_info = ImageInfo(
-        source=Path("/path/to/image-3.jpg"),
-        shape=ImageShape(width=600, height=800),
-        md5_hash="3",
-    )
-
     # Create a sample embedding tensor
     embedding_tensor = torch.randn(128, 15, 20)
 
-    # Create an Embedding instance from the ImageInfo and tensor
-    return Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor, checkpoint_id=1)
+    # Create an Embedding instance with dummy image_id
+    return Embedding.create(image_id=3, embedding_tensor=embedding_tensor, checkpoint_id=1)
 
 
 @pytest.fixture(scope="function")

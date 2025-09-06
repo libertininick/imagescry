@@ -11,7 +11,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from imagescry.image.info import ImageInfo, ImageShape
 from imagescry.models.decomposition import PCA
-from imagescry.storage.models import Embedding, LightningCheckpoint
+from imagescry.storage.models import Embedding, Image, LightningCheckpoint
 
 
 # Fixtures
@@ -60,8 +60,8 @@ def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None
     check_functions.is_true(torch.allclose(loaded_pca.component_vectors, pca.component_vectors))
 
 
-def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
-    """Test the Embedding model creation and insertion."""
+def test_image_and_embedding_model_creation_and_insertion(engine: Engine) -> None:
+    """Test Image and Embedding model creation and insertion."""
     # Create a sample ImageInfo
     image_info = ImageInfo(
         source=Path("/path/to/image.jpg"),
@@ -69,11 +69,22 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
         md5_hash="test-hash",
     )
 
+    # Create and add Image instance first
+    image = Image.create(image_info=image_info)
+    with Session(engine) as session:
+        session.add(image)
+        session.commit()
+        session.refresh(image)
+
+    # Verify the image was added and has an ID
+    if (image_id := image.id) is None:
+        pytest.fail("Image ID should not be None after insertion.")
+
     # Create a sample embedding tensor
     embedding_tensor = torch.randn(128, 20, 20)  # Example tensor with shape (C, H, W)
 
-    # Create an Embedding instance from the ImageInfo and tensor
-    embedding = Embedding.create(image_info=image_info, embedding_tensor=embedding_tensor)
+    # Create an Embedding instance with the image_id and tensor
+    embedding = Embedding.create(image_id=image_id, embedding_tensor=embedding_tensor)
 
     # Add embedding to the database
     with Session(engine) as session:
@@ -86,7 +97,7 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
 
     # Get the embedding from the database and verify attributes match the original
     with Session(engine) as session:
-        statement = select(Embedding).where(Embedding.md5_hash == "test-hash")
+        statement = select(Embedding).where(Embedding.image_id == image_id)
         db_embedding = session.exec(statement).one()
 
     assert_embeddings_equal(embedding, db_embedding)
@@ -97,10 +108,7 @@ def assert_embeddings_equal(embedding1: Embedding, embedding2: Embedding) -> Non
     """Assert that two Embedding instances are equal."""
     check_functions.equal(embedding1.id, embedding2.id)
     check_functions.equal(embedding1.checkpoint_id, embedding2.checkpoint_id)
-    check_functions.equal(embedding1.md5_hash, embedding2.md5_hash)
-    check_functions.equal(embedding1.filepath, embedding2.filepath)
-    check_functions.equal(embedding1.image_height, embedding2.image_height)
-    check_functions.equal(embedding1.image_width, embedding2.image_width)
+    check_functions.equal(embedding1.image_id, embedding2.image_id)
     check_functions.equal(embedding1.embedding_dim, embedding2.embedding_dim)
     check_functions.equal(embedding1.embedding_height, embedding2.embedding_height)
     check_functions.equal(embedding1.embedding_width, embedding2.embedding_width)
