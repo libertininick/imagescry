@@ -60,16 +60,48 @@ def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None
     check_functions.is_true(torch.allclose(loaded_pca.component_vectors, pca.component_vectors))
 
 
-def test_image_and_embedding_model_creation_and_insertion(engine: Engine) -> None:
-    """Test Image and Embedding model creation and insertion."""
+def test_image_model_creation_and_insertion(engine: Engine) -> None:
+    """Test Image model creation and insertion."""
     # Create a sample ImageInfo
     image_info = ImageInfo(
-        source=Path("/path/to/image.jpg"),
+        source=Path("/path/to/image1.jpg"),
         shape=ImageShape(width=800, height=600),
-        md5_hash="test-hash",
+        md5_hash="test-hash-image",
     )
 
-    # Create and add Image instance first
+    # Create and add Image instance
+    image = Image.create(image_info=image_info)
+    with Session(engine) as session:
+        session.add(image)
+        session.commit()
+        session.refresh(image)
+
+        # Verify the image was added and has an ID
+        check_functions.is_not_none(image.id)
+
+    # Get the image from the database and verify attributes match the original
+    with Session(engine) as session:
+        statement = select(Image).where(Image.id == image.id)
+        db_image = session.exec(statement).one()
+
+    # Verify image attributes
+    check_functions.equal(db_image.id, image.id)
+    check_functions.equal(db_image.filepath, image.filepath)
+    check_functions.equal(db_image.height, image.height)
+    check_functions.equal(db_image.width, image.width)
+    check_functions.equal(db_image.md5_hash, image.md5_hash)
+
+
+def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
+    """Test Embedding model creation and insertion."""
+    # Create a sample ImageInfo and Image instance first (needed for embedding)
+    image_info = ImageInfo(
+        source=Path("/path/to/image2.jpg"),
+        shape=ImageShape(width=400, height=300),
+        md5_hash="test-hash-embedding",
+    )
+
+    # Create and add Image instance
     image = Image.create(image_info=image_info)
     with Session(engine) as session:
         session.add(image)
