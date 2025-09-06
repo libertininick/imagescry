@@ -9,51 +9,95 @@ WIP Coming soon ⏳
 
 ## Installation
 
-First, clone the repository:
+Use the following steps to install `imagescry` from its github repository. 
 
-```bash
-git clone git@github.com:libertininick/imagescry.git
-cd imagescry
-```
+### Install `uv` and create  a virtual environment
 
-### User Installation
 1. Install `uv` if you haven't already:
 
     ```bash
     curl -LsSf https://astral.sh/uv/install.sh | sh
     ```
 
-2. Create virtual environment and ensure all project dependencies are installed and up-to-date with the lockfile:
+2. Create a virtual environment:
 
     ```bash
-    uv sync --no-dev
+    uv venv <my_env_name>
     ```
 
-The package is now installed and ready to use. You can verify the installation by running:
+3. Activate your virtual environment:
 
-  ```bash
-  uv pip show imagescry
-  ```
+    ```bash
+    source <my_env_name>/bin/activate
+    ```
+
+### Install `imagescry` using `uv pip install`:
+
+```bash
+uv pip install git+https://github.com/libertininick/imagescry.git
+```
+
+Verify the installation by running:
+
+```bash
+uv pip show imagescry
+```
+
+## Developer Info
+
+### Makefile commands
+This repository uses a [Makefile](Makefile) for managing useful commands used for development.
+
+Available commands:
+
+```plain
+Available commands
+=============================================================================================================
+ - check                    : Runs all checks:
+                              - formatting
+                              - docstring checks
+                              - tests and coverage reports
+                              - type checking
+                              - dependency vulnerability checks
+ - docstring-check          : Run docstring checks
+ - format                   : Lint and format code with ruff
+ - init                     : Initialize workspace for development:
+                              - install & update uv
+                              - sync workspace environment
+                              - install pre-commit hooks
+ - install-uv               : Download and install uv
+ - sync                     : Sync workspace environment and prune uv cache
+ - test                     : Run all tests using workspace Python version
+ - test-cov                 : Run all tests and generate coverage report using workspace Python version 
+ - test-all-python-versions : Run all tests over supported Python versions
+ - type-check               : Run type checking with mypy
+ - update                   : Update uv, all dependencies, and pre-commit hooks in workspace
+ - vulnerability-check      : Run dependency vulnerability checks
+ ```
 
 ### Developer installation
 
-This workspace uses a [Makefile](Makefile) to define a recipe of convience commands. To view a list of available commands run `make help`.
+1. Clone the repository:
 
-1. Install `make` if you haven't already
+    ```bash
+    git clone git@github.com:libertininick/imagescry.git
+    cd imagescry
+    ```
+
+2. Install `make` if you haven't already
 
     ```bash
     sudo apt update && sudo apt install make
     ```
 
-2. Initialize the workspace environment
+3. Initialize the workspace environment
 
     ```bash
     make init
     ```
 
-3. Restart your terminal and run all worspace checks:
+4. Restart your terminal and run all workspace checks:
 
     ```bash
     make check
     ```
-
