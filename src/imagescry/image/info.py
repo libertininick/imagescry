@@ -67,7 +67,7 @@ class ImageShape:
         return self.height, self.width
 
     @classmethod
-    def from_source(cls, source: ImageSource) -> "ImageShape":
+    def read(cls, source: ImageSource) -> "ImageShape":
         """Read the shape of an image file or buffer.
 
         Args:
@@ -82,30 +82,30 @@ class ImageShape:
 
 @pydantic_dataclass(frozen=True)
 class ImageInfo:
-    """Information about an image source.
+    """Information about an image.
 
     Attributes:
-        source (Path): Path to the image file.
+        filepath (Path): Path to the image file.
         shape (ImageShape): Shape of the image.
         md5_hash (str): MD5 hash of the image.
     """
 
-    source: Path
+    filepath: Path
     shape: ImageShape
     md5_hash: str
 
     @classmethod
-    def from_source(cls, source: str | PathLike) -> "ImageInfo":
-        """Create an ImageInfo instance from a source path.
+    def read(cls, filepath: str | PathLike) -> "ImageInfo":
+        """Read image information from a file.
 
         Args:
-            source (str | PathLike): Path to the image file.
+            filepath (str | PathLike): Path to the image file.
 
         Returns:
-            ImageInfo: Information about the image source.
+            ImageInfo: Information about the image.
         """
-        src = validate_filepath(source)
-        return cls(source=src, shape=ImageShape.from_source(src), md5_hash=get_image_hash(src))
+        filepath = validate_filepath(filepath)
+        return cls(filepath=filepath, shape=ImageShape.read(filepath), md5_hash=get_image_hash(filepath))
 
 
 class ImageInfos(AbstractArray[ImageInfo]):

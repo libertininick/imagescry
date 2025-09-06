@@ -190,7 +190,7 @@ class ImageFilesDataset(Dataset):
         """
         self.image_infos = ImageInfos(
             thread_map(
-                ImageInfo.from_source,
+                ImageInfo.read,
                 sources,
                 desc="Indexing images",
                 unit="img",
@@ -209,7 +209,7 @@ class ImageFilesDataset(Dataset):
             tuple[Int64[Tensor, ''], UInt8[Tensor, '3 H W']]: The image index and tensor.
         """
         # Read image and extract tensor
-        image_tensor = read_image_as_rgb_tensor(self.image_infos[idx].source)
+        image_tensor = read_image_as_rgb_tensor(self.image_infos[idx].filepath)
 
         # Return image index and tensor
         return torch.tensor(idx), image_tensor

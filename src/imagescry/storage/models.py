@@ -41,7 +41,7 @@ class Image(BaseStorageModel, table=True):
     def info(self) -> ImageInfo:
         """ImageInfo: Get the image information as an ImageInfo object."""
         return ImageInfo(
-            source=self.filepath,
+            filepath=self.filepath,
             shape=ImageShape(width=self.width, height=self.height),
             md5_hash=self.md5_hash,
         )
@@ -58,7 +58,7 @@ class Image(BaseStorageModel, table=True):
         """
         return cls(
             md5_hash=image_info.md5_hash,
-            filepath=image_info.source,
+            filepath=image_info.filepath,
             height=image_info.shape.height,
             width=image_info.shape.width,
         )

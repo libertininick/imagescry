@@ -64,7 +64,7 @@ def test_image_model_creation_and_insertion(engine: Engine) -> None:
     """Test Image model creation and insertion."""
     # Create a sample ImageInfo
     image_info = ImageInfo(
-        source=Path("/path/to/image1.jpg"),
+        filepath=Path("/path/to/image1.jpg"),
         shape=ImageShape(width=800, height=600),
         md5_hash="test-hash-image",
     )
@@ -96,7 +96,7 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
     """Test Embedding model creation and insertion."""
     # Create a sample ImageInfo and Image instance first (needed for embedding)
     image_info = ImageInfo(
-        source=Path("/path/to/image2.jpg"),
+        filepath=Path("/path/to/image2.jpg"),
         shape=ImageShape(width=400, height=300),
         md5_hash="test-hash-embedding",
     )
