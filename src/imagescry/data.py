@@ -182,21 +182,13 @@ class ImageFilesDataset(Dataset):
                   [ 26,  26,  48,  ..., 195, 194, 195]]], dtype=torch.uint8))
     """
 
-    def __init__(self, sources: Sequence[str | PathLike]) -> None:
-        """Initialize the dataset by indexing image sources.
+    def __init__(self, image_infos: ImageInfos | Sequence[ImageInfo]) -> None:
+        """Initialize the dataset.
 
         Args:
-            sources (Sequence[str | PathLike]): Sequence of image sources to create the dataset from.
+            image_infos (ImageInfos | Sequence[ImageInfo]): Array or sequence of ImageInfo objects.
         """
-        self.image_infos = ImageInfos(
-            thread_map(
-                ImageInfo.read,
-                sources,
-                desc="Indexing images",
-                unit="img",
-                total=len(sources),
-            )
-        )
+        self.image_infos = ImageInfos(image_infos) if not isinstance(image_infos, ImageInfos) else image_infos
 
     @jaxtyped(typechecker=typechecker)
     def __getitem__(self, idx: int) -> tuple[Int64[Tensor, ""], UInt8[Tensor, "3 H W"]]:
@@ -305,16 +297,40 @@ class ImageFilesDataset(Dataset):
             FileNotFoundError: If the directory does not exist or if no images are found in the directory.
         """
         if (directory := Path(directory)).is_dir():
-            # Find image sources
+            # Find image filepaths in directory
             extension_set = {ext.lower() for ext in image_extensions}
-            sources = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in extension_set]
-            if not sources:
+            filepaths = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in extension_set]
+            if not filepaths:
                 raise FileNotFoundError(f"No images found in directory {directory}")
 
             # Create dataset
-            return cls(sources)
+            return cls.from_files(filepaths)
         else:
             raise FileNotFoundError(f"Directory {directory} does not exist")
+
+    @classmethod
+    def from_files(cls, filepaths: Sequence[str | PathLike]) -> Self:
+        """Create a dataset from a sequence of image files.
+
+        Args:
+            filepaths (Sequence[str | PathLike]): The image files to create the dataset from.
+
+        Returns:
+            Self: An instance of `ImageFilesDataset`.
+        """
+        # Create an array of ImageInfo objects from file paths
+        image_infos = ImageInfos(
+            thread_map(
+                ImageInfo.read,
+                filepaths,
+                desc="Indexing images",
+                unit="img",
+                total=len(filepaths),
+            )
+        )
+
+        # Create dataset
+        return cls(image_infos)
 
 
 class StoredEmbeddingsDataset(Dataset):
