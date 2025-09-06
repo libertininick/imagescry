@@ -45,17 +45,17 @@ install-uv:
 
 ## Update all dependencies in workspace
 # 1) Update UV tool
-# 2) Prune UV Cache
-# 3) Upgrade Python version
-# 4) Upgrade all packages listed in uv.lock
+# 2) Upgrade Python version
+# 3) Upgrade all packages listed in uv.lock
+# 4) Prune UV Cache
 # 5) Sync workspace environment
 # 6) Install (new) pre-commit hooks
 # 7) Update pre-commit hooks
 update:
 	@uv self update
-	@uv cache prune
 	@uv python upgrade
 	@uv lock --upgrade
+	@uv cache prune
 	@uv sync
 	@uv run pre-commit install-hooks
 	@uv run pre-commit autoupdate
@@ -74,6 +74,11 @@ init: install-uv
 	@echo "Installing pre-commit hooks"
 	@$(UV_PATH) run pre-commit install
 	@echo "success: Workspace initialized"
+
+## Sync workspace environment
+sync:
+	@echo "Syncing workspace environment"
+	@uv sync
 
 ## Lint and format code with ruff
 # 1) Run ruff linter to check code adhearence to rules and fix when possible
