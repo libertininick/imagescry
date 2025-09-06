@@ -25,6 +25,7 @@ help:
 	@echo "                              - sync workspace environment"
 	@echo "                              - install pre-commit hooks"
 	@echo " - install-uv               : Download and install uv"
+	@echo " - sync                     : Sync workspace environment and prune uv cache"
 	@echo " - test                     : Run all tests using workspace Python version"
 	@echo " - test-cov                 : Run all tests and generate coverage report using workspace Python version "
 	@echo " - test-all-python-versions : Run all tests over supported Python versions"
@@ -107,7 +108,7 @@ test-all-python-versions:
 	@echo "Running tests for Python 3.13"
 	@uv run --python 3.13 pytest
 
-## Run type checking with mypy
+## Run type checking with mypy and ty
 type-check:
 	@echo "Type checking with mypy"
 	@uv run mypy src/ tests/
