@@ -24,7 +24,7 @@ class Image(BaseStorageModel, table=True):
     """SQLModel for storing an image record in the images table.
 
     Attributes:
-        relative_filepath (Path): File path of the image relative to database root directory. Indexed for fast lookup.
+        relative_filepath (Path): File path of the image relative to root image directory. Indexed for fast lookup.
         height (int): Height of the image in pixels. Must be greater than 0.
         width (int): Width of the image in pixels. Must be greater than 0.
     """
@@ -39,7 +39,7 @@ class Image(BaseStorageModel, table=True):
         """Get the image information as an ImageInfo object.
 
         Args:
-            root_dir (Path): Root directory path to reconstruct the absolute filepath.
+            root_dir (Path): Root image directory to reconstruct the absolute filepath.
 
         Returns:
             ImageInfo: The image information with absolute filepath.
