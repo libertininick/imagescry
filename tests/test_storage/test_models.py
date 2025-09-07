@@ -63,13 +63,14 @@ def test_pca_checkpoint_creation_and_insertion(engine: Engine, pca: PCA) -> None
 def test_image_model_creation_and_insertion(engine: Engine) -> None:
     """Test Image model creation and insertion."""
     # Create a sample ImageInfo
+    root_dir = Path("/path/to")
     image_info = ImageInfo(
-        filepath=Path("/path/to/image1.jpg"),
+        filepath=root_dir / "image1.jpg",
         shape=ImageShape(width=800, height=600),
     )
 
     # Create and add Image instance
-    image = Image.create(image_info=image_info)
+    image = Image.create(image_info=image_info, root_dir=root_dir)
     with Session(engine) as session:
         session.add(image)
         session.commit()
@@ -85,7 +86,7 @@ def test_image_model_creation_and_insertion(engine: Engine) -> None:
 
     # Verify image attributes
     check_functions.equal(db_image.id, image.id)
-    check_functions.equal(db_image.filepath, image.filepath)
+    check_functions.equal(db_image.relative_filepath, image.relative_filepath)
     check_functions.equal(db_image.height, image.height)
     check_functions.equal(db_image.width, image.width)
 
@@ -93,13 +94,14 @@ def test_image_model_creation_and_insertion(engine: Engine) -> None:
 def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
     """Test Embedding model creation and insertion."""
     # Create a sample ImageInfo and Image instance first (needed for embedding)
+    root_dir = Path("/path/to")
     image_info = ImageInfo(
-        filepath=Path("/path/to/image2.jpg"),
+        filepath=root_dir / "image2.jpg",
         shape=ImageShape(width=400, height=300),
     )
 
     # Create and add Image instance
-    image = Image.create(image_info=image_info)
+    image = Image.create(image_info=image_info, root_dir=root_dir)
     with Session(engine) as session:
         session.add(image)
         session.commit()

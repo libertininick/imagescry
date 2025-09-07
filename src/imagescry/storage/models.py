@@ -24,37 +24,48 @@ class Image(BaseStorageModel, table=True):
     """SQLModel for storing an image record in the images table.
 
     Attributes:
-        filepath (Path): Unique file path of the image. Indexed for fast lookup.
+        relative_filepath (Path): Relative file path of the image (relative to database root). Indexed for fast lookup.
         height (int): Height of the image in pixels. Must be greater than 0.
         width (int): Width of the image in pixels. Must be greater than 0.
     """
 
     __tablename__: str = "images"  # Manually set the table name
 
-    filepath: Path = Field(sa_column=Column(PathType, unique=True, index=True))
+    relative_filepath: Path = Field(sa_column=Column(PathType, unique=True, index=True))
     height: int = Field(gt=0)
     width: int = Field(gt=0)
 
-    @property
-    def info(self) -> ImageInfo:
-        """ImageInfo: Get the image information as an ImageInfo object."""
+    def info(self, root_dir: Path) -> ImageInfo:
+        """Get the image information as an ImageInfo object.
+
+        Args:
+            root_dir (Path): Root directory path to reconstruct the absolute filepath.
+
+        Returns:
+            ImageInfo: The image information with absolute filepath.
+        """
+        absolute_filepath = root_dir / self.relative_filepath
         return ImageInfo(
-            filepath=self.filepath,
+            filepath=absolute_filepath,
             shape=ImageShape(width=self.width, height=self.height),
         )
 
     @classmethod
-    def create(cls, image_info: ImageInfo) -> "Image":
+    def create(cls, image_info: ImageInfo, root_dir: Path) -> "Image":
         """Create an Image instance from image information.
 
         Args:
             image_info (ImageInfo): Information about the image.
+            root_dir (Path): Root directory path to compute relative filepath.
 
         Returns:
             Image: An instance of the Image class.
         """
+        # Convert absolute filepath to relative filepath
+        relative_filepath = image_info.filepath.relative_to(root_dir)
+
         return cls(
-            filepath=image_info.filepath,
+            relative_filepath=relative_filepath,
             height=image_info.shape.height,
             width=image_info.shape.width,
         )
