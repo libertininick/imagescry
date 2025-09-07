@@ -66,7 +66,6 @@ def test_image_model_creation_and_insertion(engine: Engine) -> None:
     image_info = ImageInfo(
         filepath=Path("/path/to/image1.jpg"),
         shape=ImageShape(width=800, height=600),
-        md5_hash="test-hash-image",
     )
 
     # Create and add Image instance
@@ -89,7 +88,6 @@ def test_image_model_creation_and_insertion(engine: Engine) -> None:
     check_functions.equal(db_image.filepath, image.filepath)
     check_functions.equal(db_image.height, image.height)
     check_functions.equal(db_image.width, image.width)
-    check_functions.equal(db_image.md5_hash, image.md5_hash)
 
 
 def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
@@ -98,7 +96,6 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
     image_info = ImageInfo(
         filepath=Path("/path/to/image2.jpg"),
         shape=ImageShape(width=400, height=300),
-        md5_hash="test-hash-embedding",
     )
 
     # Create and add Image instance

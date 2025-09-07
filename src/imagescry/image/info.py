@@ -11,7 +11,7 @@ from pydantic import Field
 from pydantic.dataclasses import dataclass as pydantic_dataclass
 
 from imagescry.abstract_array import AbstractArray
-from imagescry.image.io import ImageSource, get_image_hash, open_image_source, validate_filepath
+from imagescry.image.io import ImageSource, open_image_source, validate_filepath
 
 
 @pydantic_dataclass(frozen=True)
@@ -87,12 +87,10 @@ class ImageInfo:
     Attributes:
         filepath (Path): Path to the image file.
         shape (ImageShape): Shape of the image.
-        md5_hash (str): MD5 hash of the image.
     """
 
     filepath: Path
     shape: ImageShape
-    md5_hash: str
 
     @classmethod
     def read(cls, filepath: str | PathLike) -> "ImageInfo":
@@ -105,7 +103,7 @@ class ImageInfo:
             ImageInfo: Information about the image.
         """
         filepath = validate_filepath(filepath)
-        return cls(filepath=filepath, shape=ImageShape.read(filepath), md5_hash=get_image_hash(filepath))
+        return cls(filepath=filepath, shape=ImageShape.read(filepath))
 
 
 class ImageInfos(AbstractArray[ImageInfo]):

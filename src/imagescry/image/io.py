@@ -6,7 +6,6 @@ This module contains functions for image I/O operations.
 import base64
 from collections.abc import Generator
 from contextlib import contextmanager
-from hashlib import md5
 from io import BytesIO
 from os import PathLike
 from pathlib import Path
@@ -21,35 +20,6 @@ from torchvision.transforms.functional import pil_to_tensor
 from imagescry.typechecking import typechecker
 
 ImageSource = str | PathLike | bytes | BytesIO
-
-
-def get_image_hash(image_source: ImageSource, *, buffer_size: int = 65_536) -> str:
-    """Calculate the MD5 hash of an image.
-
-    Args:
-        image_source (ImageSource): The image source to get the hash of.
-        buffer_size (int, optional): The buffer size to use for reading the image. Defaults to 65536.
-
-    Returns:
-        str: The MD5 hash of the image.
-    """
-    # Initialize MD5 hash
-    md5_hash = md5(usedforsecurity=False)
-
-    # Add image bytes to hash based on source type
-    match image_source:
-        case str() | PathLike():
-            with Path(image_source).open("rb") as f:
-                for chunk in iter(lambda: f.read(buffer_size), b""):
-                    md5_hash.update(chunk)
-        case bytes():
-            md5_hash.update(image_source)
-        case BytesIO():
-            for chunk in iter(lambda: image_source.read(buffer_size), b""):
-                md5_hash.update(chunk)
-
-    # Return hexdigest
-    return md5_hash.hexdigest()
 
 
 @contextmanager

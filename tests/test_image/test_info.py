@@ -9,7 +9,7 @@ from pytest_check import check_functions
 from imagescry.image.info import ImageInfo, ImageShape
 
 
-def test_image_info_from_source(image_source_file: Path, image_shape: ImageShape, image_hash: str) -> None:
+def test_image_info_from_source(image_source_file: Path, image_shape: ImageShape) -> None:
     """Test creating an ImageInfo instance from a valid image source."""
     # Create ImageInfo instance
     image_info = ImageInfo.read(image_source_file)
@@ -17,7 +17,6 @@ def test_image_info_from_source(image_source_file: Path, image_shape: ImageShape
     # Check attributes
     check_functions.equal(image_source_file.absolute(), image_info.filepath, msg="Image source path is not correct")
     check_functions.equal(image_shape, image_info.shape, msg="Image shape is not correct")
-    check_functions.equal(image_hash, image_info.md5_hash, msg="Image hash is not correct")
 
 
 def test_image_shape_from_source(image_source: Path | bytes | BytesIO, image_shape: ImageShape) -> None:

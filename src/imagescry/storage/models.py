@@ -24,7 +24,6 @@ class Image(BaseStorageModel, table=True):
     """SQLModel for storing an image record in the images table.
 
     Attributes:
-        md5_hash (str): Unique MD5 hash of the image file. Indexed for fast lookup.
         filepath (Path): Unique file path of the image. Indexed for fast lookup.
         height (int): Height of the image in pixels. Must be greater than 0.
         width (int): Width of the image in pixels. Must be greater than 0.
@@ -32,7 +31,6 @@ class Image(BaseStorageModel, table=True):
 
     __tablename__: str = "images"  # Manually set the table name
 
-    md5_hash: str = Field(unique=True, index=True)
     filepath: Path = Field(sa_column=Column(PathType, unique=True, index=True))
     height: int = Field(gt=0)
     width: int = Field(gt=0)
@@ -43,7 +41,6 @@ class Image(BaseStorageModel, table=True):
         return ImageInfo(
             filepath=self.filepath,
             shape=ImageShape(width=self.width, height=self.height),
-            md5_hash=self.md5_hash,
         )
 
     @classmethod
@@ -57,7 +54,6 @@ class Image(BaseStorageModel, table=True):
             Image: An instance of the Image class.
         """
         return cls(
-            md5_hash=image_info.md5_hash,
             filepath=image_info.filepath,
             height=image_info.shape.height,
             width=image_info.shape.width,

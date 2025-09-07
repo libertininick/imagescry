@@ -1,6 +1,5 @@
 """Test fixtures for the testing the ImageScry Image module."""
 
-from hashlib import md5
 from io import BytesIO
 from pathlib import Path
 
@@ -60,9 +59,3 @@ def image_source(request: FixtureRequest) -> Path | bytes | BytesIO:
     """Create a test image source."""
     # Get the fixture dynamically by name
     return request.getfixturevalue(request.param)
-
-
-@pytest.fixture(scope="session")
-def image_hash(image_source_bytes: bytes) -> str:
-    """Create a test image hash."""
-    return md5(image_source_bytes, usedforsecurity=False).hexdigest()
