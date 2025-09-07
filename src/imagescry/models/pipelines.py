@@ -1,8 +1,10 @@
 """Pipelines for encapsulating model inference and storage."""
 
+from collections.abc import Sequence
 from tempfile import TemporaryDirectory
 from typing import cast
 
+import torch
 from jaxtyping import jaxtyped
 from lightning import LightningModule, Trainer
 from lightning.pytorch.accelerators import Accelerator
@@ -10,7 +12,6 @@ from more_itertools import flatten
 from torch.utils.data import DataLoader
 
 from imagescry.data import EmbeddingBatch, ImageBatch
-from imagescry.image.info import ImageInfos
 from imagescry.models.decomposition import PCA
 from imagescry.models.embedding import EmbeddingModule
 from imagescry.storage.database import DatabaseManager
@@ -27,7 +28,7 @@ class EmbeddingPCAPipeline(LightningModule):
         embedding_model: EmbeddingModule,
         pca: PCA,
         db_manager: DatabaseManager | None = None,
-        image_infos: ImageInfos | None = None,
+        image_ids: Sequence[int] | None = None,
         pca_checkpoint_id: int | None = None,
     ) -> None:
         """Initialize the pipeline.
@@ -36,11 +37,11 @@ class EmbeddingPCAPipeline(LightningModule):
             embedding_model (EmbeddingModule): Pretrained embedding model to use.
             pca (PCA): Pretrained PCA model to use.
             db_manager (DatabaseManager | None): Database manager for storing embeddings. Defaults to None.
-            image_infos (ImageInfos | None): Image information for the embeddings. Defaults to None.
+            image_ids (Sequence[int] | None): IDs of the images to embed. Defaults to None.
             pca_checkpoint_id (int | None): ID of the PCA checkpoint used for this embedding. Defaults to None.
 
         Raises:
-            ValueError: If the PCA model is not fitted or if database manager is provided an either `image_infos` or
+            ValueError: If the PCA model is not fitted or if database manager is provided an either `image_ids` or
                 `pca_checkpoint_id` is not provided.
         """
         super().__init__()
@@ -48,15 +49,15 @@ class EmbeddingPCAPipeline(LightningModule):
         if not pca.fitted:
             raise ValueError("PCA model must be fitted before it can be used in the pipeline.")
 
-        if db_manager is not None and (image_infos is None or pca_checkpoint_id is None):
+        if db_manager is not None and (image_ids is None or pca_checkpoint_id is None):
             raise ValueError(
-                "If a database manager is provided, both `image_infos` and `pca_checkpoint_id` must be provided."
+                "If a database manager is provided, both `image_ids` and `pca_checkpoint_id` must be provided."
             )
 
         self.embedding_model = embedding_model
         self.pca = pca
         self.db_manager = db_manager
-        self.image_infos = image_infos or ImageInfos(items=[])
+        self.image_ids = torch.tensor(image_ids or [])
         self.pca_checkpoint_id = pca_checkpoint_id
 
     @jaxtyped(typechecker=typechecker)
@@ -87,10 +88,10 @@ class EmbeddingPCAPipeline(LightningModule):
             return EmbeddingBatch(indices=batch.indices, embeddings=compressed_embeddings)
 
         # Store embeddings in the database
-        batch_image_infos = self.image_infos[batch.indices.cpu().tolist()]
+        batch_image_ids = self.image_ids[batch.indices.cpu()]
         embeddings = [
-            Embedding.create(image_info, compressed_embeddings[i].cpu(), checkpoint_id=self.pca_checkpoint_id)
-            for i, image_info in enumerate(batch_image_infos)
+            Embedding.create(image_id, compressed_embeddings[i].cpu(), checkpoint_id=self.pca_checkpoint_id)
+            for i, image_id in enumerate(batch_image_ids.tolist())
         ]
         embedding_ids = self.db_manager.add_items(embeddings)
         return embedding_ids
