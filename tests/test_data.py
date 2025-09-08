@@ -209,3 +209,53 @@ def test_from_directory_not_exists(tmp_path: Path) -> None:
     non_existent_dir = tmp_path / "non_existent"
     with pytest.raises(FileNotFoundError, match=r"Directory .* does not exist"):
         ImageFilesDataset.from_directory(non_existent_dir)
+
+
+def test_from_directory_recursive(tmp_path_factory: TempPathFactory) -> None:
+    """Test creating a dataset from a directory with recursive flag."""
+    # Create test directory structure with nested subdirectories
+    image_dir = tmp_path_factory.mktemp("images_recursive")
+    subdir1 = image_dir / "subdir1"
+    subdir2 = image_dir / "subdir2"
+    nested_subdir = subdir1 / "nested"
+    subdir1.mkdir()
+    subdir2.mkdir()
+    nested_subdir.mkdir()
+
+    # Create images in different directories
+    shapes = [(7, 7), (8, 8), (9, 9), (6, 6), (5, 5)]
+
+    # Root directory images
+    for i in range(2):
+        image_tensor = torch.randint(0, 255, (3, *shapes[i]), dtype=torch.uint8)
+        write_png(image_tensor, str(image_dir / f"root_{i}.png"))
+
+    # Subdir1 images
+    image_tensor = torch.randint(0, 255, (3, *shapes[2]), dtype=torch.uint8)
+    write_png(image_tensor, str(subdir1 / "sub1.png"))
+
+    # Subdir2 images
+    image_tensor = torch.randint(0, 255, (3, *shapes[3]), dtype=torch.uint8)
+    write_png(image_tensor, str(subdir2 / "sub2.png"))
+
+    # Nested subdirectory images
+    image_tensor = torch.randint(0, 255, (3, *shapes[4]), dtype=torch.uint8)
+    write_png(image_tensor, str(nested_subdir / "nested.png"))
+
+    # Test non-recursive (should only find root directory images)
+    dataset_non_recursive = ImageFilesDataset.from_directory(image_dir, recursive=False)
+    check_functions.equal(len(dataset_non_recursive), 2)  # Only root images
+
+    # Test recursive (should find all images)
+    dataset_recursive = ImageFilesDataset.from_directory(image_dir, recursive=True)
+    check_functions.equal(len(dataset_recursive), 5)  # All images including subdirectories
+
+    # Check all images can be loaded
+    for i in range(len(dataset_recursive)):
+        idx, img = dataset_recursive[i]
+        # Check index matches expected index
+        check_functions.equal(idx, i)
+        # Check image has been loaded as RGB tensor with 3 channels
+        check_functions.equal(img.shape[0], 3)  # RGB channels
+        # Check shape matches expected shape
+        check_functions.equal(img.shape[1:], dataset_recursive.image_infos[i].shape.to_tuple())
