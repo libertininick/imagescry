@@ -281,14 +281,16 @@ class ImageFilesDataset(Dataset):
         cls,
         directory: str | PathLike,
         *,
-        image_extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png"),
+        recursive: bool = False,
+        image_extensions: tuple[str, ...] = (".jpg", ".jpeg", ".png", ".tif", ".tiff"),
     ) -> Self:
         """Create a dataset from a directory of images.
 
         Args:
             directory (str | PathLike): The directory to create the dataset from.
+            recursive (bool, optional): Whether to search for images recursively in subdirectories. Defaults to False.
             image_extensions (tuple[str, ...], optional): The image file extensions (case insensitive) to use to find
-                image files within the directory. Defaults to `(".jpg", ".jpeg", ".png")`.
+                image files within the directory. Defaults to `(".jpg", ".jpeg", ".png", ".tif", ".tiff")`.
 
         Returns:
             Self: An instance of `ImageFilesDataset`.
@@ -296,17 +298,30 @@ class ImageFilesDataset(Dataset):
         Raises:
             FileNotFoundError: If the directory does not exist or if no images are found in the directory.
         """
-        if (directory := Path(directory)).is_dir():
-            # Find image filepaths in directory
-            extension_set = {ext.lower() for ext in image_extensions}
-            filepaths = [f for f in directory.rglob("*") if f.is_file() and f.suffix.lower() in extension_set]
-            if not filepaths:
-                raise FileNotFoundError(f"No images found in directory {directory}")
+        # set of lowercase image extensions for case insensitive matching
+        extension_set = {ext.lower() for ext in image_extensions}
 
-            # Create dataset
-            return cls.from_files(filepaths)
-        else:
+        # Validate directory
+        directory = Path(directory)
+        if not directory.exists():
             raise FileNotFoundError(f"Directory {directory} does not exist")
+
+        # Find image filepaths in directory
+        filepaths = [
+            fp
+            for ext in extension_set
+            for fp in (
+                directory.rglob(f"*{ext}", case_sensitive=False)
+                if recursive
+                else directory.glob(f"*{ext}", case_sensitive=False)
+            )
+            if fp.is_file()
+        ]
+        if not filepaths:
+            raise FileNotFoundError(f"No images found in directory {directory}")
+
+        # Create dataset
+        return cls.from_files(filepaths)
 
     @classmethod
     def from_files(cls, filepaths: Sequence[str | PathLike]) -> Self:
