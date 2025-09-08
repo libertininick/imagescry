@@ -170,6 +170,63 @@ class DatabaseManager:
 
         return False
 
+    def delete_item(self, model: type[StorageModel], item_id: int) -> bool:
+        """Delete a single item from the database by ID.
+
+        Args:
+            model (type[StorageModel]): The model class to delete from.
+            item_id (int): ID of the item to delete.
+
+        Returns:
+            bool: True if the item was deleted, False if not found.
+        """
+        return len(self.delete_items(model, [item_id])) > 0
+
+    def delete_items(self, model: type[StorageModel], item_ids: list[int]) -> list[int]:
+        """Delete multiple items from the database by their IDs.
+
+        Args:
+            model (type[StorageModel]): The model class to delete from.
+            item_ids (list[int]): List of IDs of the items to delete.
+
+        Returns:
+            list[int]: List of IDs of items that were actually deleted.
+
+        Raises:
+            RuntimeError: If the database engine is not initialized or if deleting items fails.
+        """
+        # Quick exit if no items to delete
+        if not item_ids:
+            return []
+
+        # Check if the engine is initialized
+        if not self.engine:
+            raise RuntimeError("Database engine is not initialized. Call create_engine() first.")
+
+        with Session(self.engine) as session:
+            try:
+                # First, get the items that actually exist
+                statement = select(model).where(model.id.in_(item_ids))  # type: ignore[union-attr]
+                items_to_delete = session.exec(statement).all()
+
+                if not items_to_delete:
+                    return []
+
+                # Get the IDs of items that will be deleted
+                deleted_ids = [item.id for item in items_to_delete if item.id is not None]
+
+                # Delete the items
+                for item in items_to_delete:
+                    session.delete(item)
+
+                session.commit()
+                return deleted_ids
+
+            except Exception as e:
+                # Rollback the session in case of an error
+                session.rollback()
+                raise RuntimeError(f"Failed to delete items from the database: {e}") from e
+
     def get_item(self, model: type[StorageModel], item_id: int) -> StorageModel | None:
         """Get a single item from the database by ID.
 
@@ -203,7 +260,7 @@ class DatabaseManager:
                 # If IDs are provided, filter by those IDs
                 if not item_ids:
                     return []
-                statement = select(model).where(model.id.in_(item_ids))
+                statement = select(model).where(model.id.in_(item_ids))  # type: ignore[union-attr]
 
             return list(session.exec(statement).all())
 

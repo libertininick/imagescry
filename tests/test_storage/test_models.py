@@ -1,5 +1,6 @@
 """Tests for database object models."""
 
+import tempfile
 from collections.abc import Generator
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from imagescry.image.info import ImageInfo, ImageShape
 from imagescry.models.decomposition import PCA
+from imagescry.storage.database import DatabaseManager
 from imagescry.storage.models import Embedding, Image, LightningCheckpoint
 
 
@@ -132,6 +134,97 @@ def test_embedding_model_creation_and_insertion(engine: Engine) -> None:
         db_embedding = session.exec(statement).one()
 
     assert_embeddings_equal(embedding, db_embedding)
+
+
+def test_image_model_deletion(tmp_path: Path) -> None:
+    """Test Image model deletion functionality."""
+    # Create a temporary database for testing
+    db_manager = DatabaseManager(db_dir=tmp_path)
+
+    # Create multiple images for testing deletion
+    images = []
+    for idx in range(3):
+        image_info = ImageInfo(
+            filepath=tmp_path / f"image{idx}.jpg",
+            shape=ImageShape(width=800, height=600),
+        )
+        image = Image.create(image_info=image_info, root_dir=tmp_path)
+        images.append(image)
+
+    # Add images to the test database manager
+    image_ids = db_manager.add_items(images)
+    check_functions.equal(len(image_ids), 3)
+
+    # Delete first image
+    deleted = db_manager.delete_item(Image, image_ids[0])
+    check_functions.is_true(deleted)
+
+    # Verify image was deleted
+    remaining_images = db_manager.get_items(Image)
+    check_functions.equal(len(remaining_images), 2)
+
+    # Try to delete non-existent image
+    deleted_nonexistent = db_manager.delete_item(Image, 9999)
+    check_functions.is_false(deleted_nonexistent)
+
+    # Test deleting multiple images
+    deleted_ids = db_manager.delete_items(Image, image_ids[1:])
+    check_functions.equal(len(deleted_ids), 2)
+    check_functions.equal(set(deleted_ids), set(image_ids[1:]))
+
+    # Verify all images are deleted
+    remaining_images = db_manager.get_items(Image)
+    check_functions.equal(len(remaining_images), 0)
+
+    # Test deleting from empty table
+    empty_deleted = db_manager.delete_items(Image, [1, 2, 3])
+    check_functions.equal(len(empty_deleted), 0)
+
+
+def test_embedding_model_deletion() -> None:
+    """Test Embedding model deletion functionality."""
+    # Create temporary directory for DatabaseManager testing
+    with tempfile.TemporaryDirectory() as temp_dir:
+        db_manager = DatabaseManager(temp_dir)
+
+        # First create an image (required for embedding)
+        root_dir = Path("/path/to")
+        image_info = ImageInfo(
+            filepath=root_dir / "test_image.jpg",
+            shape=ImageShape(width=400, height=300),
+        )
+        image = Image.create(image_info=image_info, root_dir=root_dir)
+
+        # Add image to the test database manager
+        image_ids = db_manager.add_items([image])
+        image_id = image_ids[0]
+
+        # Create multiple embeddings
+        embeddings = []
+        for _ in range(3):
+            embedding_tensor = torch.randn(128, 20, 20)
+            embedding = Embedding.create(image_id=image_id, embedding_tensor=embedding_tensor)
+            embeddings.append(embedding)
+
+        # Add all embeddings to database
+        embedding_ids = db_manager.add_items(embeddings)
+        check_functions.equal(len(embedding_ids), 3)
+
+        # Delete single embedding
+        deleted = db_manager.delete_item(Embedding, embedding_ids[0])
+        check_functions.is_true(deleted)
+
+        # Verify embedding was deleted
+        remaining_embeddings = db_manager.get_items(Embedding)
+        check_functions.equal(len(remaining_embeddings), 2)
+
+        # Delete multiple embeddings
+        deleted_ids = db_manager.delete_items(Embedding, embedding_ids[1:])
+        check_functions.equal(len(deleted_ids), 2)
+
+        # Verify all embeddings are deleted
+        remaining_embeddings = db_manager.get_items(Embedding)
+        check_functions.equal(len(remaining_embeddings), 0)
 
 
 # Helpers
