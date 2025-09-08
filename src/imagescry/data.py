@@ -364,7 +364,7 @@ class StoredEmbeddingsDataset(Dataset):
         # Define the SQL statement to get embedding ids and their spatial dimensions
         statement = select(Embedding.id, Embedding.embedding_height, Embedding.embedding_width)
         if embedding_ids is not None:
-            statement = statement.where(Embedding.id.in_(embedding_ids))
+            statement = statement.where(Embedding.id.in_(embedding_ids))  # type: ignore[union-attr]
 
         # Execute the statement and get the results
         with db_manager.get_session() as session:
